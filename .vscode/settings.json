@@ -45,4 +45,5 @@
   "emmet.triggerExpansionOnTab": true,
   "typescript.suggest.autoImports": true,
   "javascript.suggest.autoImports": true,
+  "typescript.preferences.includePackageJsonAutoImports": "auto"
 }
