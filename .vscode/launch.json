@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug",
+      "name": "Run Chat UI",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev"

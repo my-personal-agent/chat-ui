@@ -48,12 +48,16 @@ export default function RootLayout({
           >
             <AppSidebar />
             <SidebarInset>
-              <SiteHeader />
-              <div className="flex flex-1 flex-col">
-                <div className="@container/main flex flex-1 flex-col gap-2">
-                  <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                    {children}
-                  </div>
+              <div className="sticky top-0 z-50 bg-background">
+                <SiteHeader />
+              </div>
+
+              {/* Main layout area below header */}
+              <div className="flex flex-col h-[calc(100vh-3rem)]">
+                {" "}
+                {/* Adjust 3rem if header is taller */}
+                <div className="flex flex-1 flex-col overflow-hidden">
+                  {children}
                 </div>
               </div>
             </SidebarInset>
