@@ -1,3 +1,5 @@
+"use client";
+
 import { MessageBubble } from "@/components/chat/message-bubble";
 import { WelcomeScreen } from "@/components/chat/welcome-screen";
 import { Skeleton } from "@/components/ui/skeleton";

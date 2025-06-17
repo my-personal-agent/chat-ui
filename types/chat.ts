@@ -1,7 +1,7 @@
 export interface Message {
   id: string;
-  sender: "user" | "bot" | "system" | "error";
-  text: string;
+  role: "user" | "bot" | "system" | "error";
+  content: string;
   isProcessing?: boolean;
   timestamp?: number;
 }

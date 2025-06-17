@@ -12,10 +12,10 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.sender === "user";
-  const isSystem = message.sender === "system";
+  const isUser = message.role === "user";
+  const isSystem = message.role === "system";
   // const isBot = message.sender === "bot";
-  const isError = message.sender === "error";
+  const isError = message.role === "error";
 
   const baseBubbleClass = isUser
     ? "bg-primary text-primary-foreground shadow-sm py-3 rounded-lg px-4"
@@ -47,14 +47,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             <div className="prose prose-neutral dark:prose-invert max-w-none space-y-2">
               {isSystem ? (
                 <CollapsibleAside streaming={message.isProcessing ?? false}>
-                  {message.text}
+                  {message.content}
                 </CollapsibleAside>
               ) : (
-                <Markdown content={message.text} />
+                <Markdown content={message.content} />
               )}
             </div>
 
-            {message.text === "" && (
+            {message.content === "" && (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-[250px]" />
                 <Skeleton className="h-4 w-[200px]" />

@@ -1,61 +1,89 @@
+"use client";
+
 import { Message } from "@/types/chat";
 import { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-export function useChat() {
+export function useChat(initialConversationId: string | null = null) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationId, setConversationId] = useState(initialConversationId);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const botIdRef = useRef<string | null>(null);
-  const sysIdRef = useRef<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
 
-  const sendMessage = (messageText: string, conversationId = "default") => {
+  const sendMessage = (messageText: string) => {
     eventSourceRef.current?.close();
-    botIdRef.current = null;
-    sysIdRef.current = null;
+    userIdRef.current = null;
 
     const userMsg: Message = {
       id: uuidv4(),
-      text: messageText,
-      sender: "user",
+      content: messageText,
+      role: "user",
       timestamp: Date.now(),
     };
+    userIdRef.current = userMsg.id;
     setMessages((m) => [...m, userMsg]);
+
     setIsStreaming(true);
     setShowLoading(true);
 
     const params = new URLSearchParams({
       message: messageText,
-      conversation_id: conversationId,
+      ...(conversationId ? { conversation_id: conversationId } : {}),
     });
     const es = new EventSource(`/api/chat/stream?${params}`);
     eventSourceRef.current = es;
 
-    es.addEventListener("start_thinking", () => {
-      setShowLoading(false);
-      const id = uuidv4();
-      sysIdRef.current = id;
-      const sysMsg: Message = {
-        id,
-        text: "",
-        sender: "system",
-        isProcessing: false,
-        timestamp: Date.now(),
-      };
-      setMessages((m) => [...m, sysMsg]);
-    });
+    es.addEventListener("init", (e) => {
+      const data = JSON.parse(e.data);
 
-    es.addEventListener("thinking", (e) => {
-      const id = sysIdRef.current;
+      const id = userIdRef.current;
       if (!id) return;
       setMessages((m) =>
         m.map((msg) =>
           msg.id === id
             ? {
                 ...msg,
-                text: msg.text + e.data,
-                timestamp: Date.now(),
+                id: data.id,
+                timestamp: data.timestamp,
+              }
+            : msg
+        )
+      );
+      userIdRef.current = data.id;
+
+      if (!conversationId && data.conversation_id) {
+        setConversationId(data.conversation_id);
+
+        const url = new URL(window.location.href);
+        url.pathname = `/${data.conversation_id}`;
+        window.history.replaceState({}, "", url.toString());
+      }
+    });
+
+    es.addEventListener("start_thinking", (e) => {
+      setShowLoading(false);
+      const data = JSON.parse(e.data);
+      const sysMsg: Message = {
+        id: data.id,
+        role: data.role,
+        timestamp: data.timestamp,
+        content: data.content,
+        isProcessing: false,
+      };
+      setMessages((m) => [...m, sysMsg]);
+    });
+
+    es.addEventListener("thinking", (e) => {
+      const data = JSON.parse(e.data);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === data.id
+            ? {
+                ...msg,
+                content: data.content,
+                timestamp: data.timestamp,
                 isProcessing: true,
               }
             : msg
@@ -63,71 +91,88 @@ export function useChat() {
       );
     });
 
-    es.addEventListener("end_thinking", () => {
+    es.addEventListener("end_thinking", (e) => {
       setShowLoading(true);
-      const id = sysIdRef.current;
-      if (id) {
-        setMessages((m) =>
-          m.map((msg) =>
-            msg.id === id
-              ? {
-                  ...msg,
-                  timestamp: Date.now(),
-                  isProcessing: false,
-                }
-              : msg
-          )
-        );
-      }
-      sysIdRef.current = null;
+      const data = JSON.parse(e.data);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === data.id
+            ? {
+                ...msg,
+                content: data.content,
+                timestamp: data.timestamp,
+                isProcessing: false,
+              }
+            : msg
+        )
+      );
+    });
+
+    es.addEventListener("start_messaging", (e) => {
+      setShowLoading(false);
+      const data = JSON.parse(e.data);
+      const botMsg: Message = {
+        id: data.id,
+        role: data.role,
+        timestamp: data.timestamp,
+        content: data.content,
+        isProcessing: false,
+      };
+      setMessages((m) => [...m, botMsg]);
     });
 
     es.addEventListener("messaging", (e) => {
-      const data = e.data;
-      if (!botIdRef.current) {
-        if (data.trim() == "") {
-          setShowLoading(true);
-          return;
-        }
-        const id = uuidv4();
-        botIdRef.current = id;
-        const botMsg: Message = {
-          id,
-          text: data,
-          sender: "bot",
-          timestamp: Date.now(),
-        };
-        setMessages((m) => [...m, botMsg]);
-        setShowLoading(false);
-      } else {
-        const id = botIdRef.current;
-        setMessages((m) =>
-          m.map((msg) =>
-            msg.id === id
-              ? { ...msg, text: msg.text + data, timestamp: Date.now() }
-              : msg
-          )
-        );
-      }
+      const data = JSON.parse(e.data);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === data.id
+            ? {
+                ...msg,
+                content: data.content,
+                timestamp: data.timestamp,
+                isProcessing: true,
+              }
+            : msg
+        )
+      );
+    });
+
+    es.addEventListener("end_messaging", (e) => {
+      setShowLoading(true);
+      const data = JSON.parse(e.data);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === data.id
+            ? {
+                ...msg,
+                content: data.content,
+                timestamp: data.timestamp,
+                isProcessing: false,
+              }
+            : msg
+        )
+      );
     });
 
     const cleanup = () => {
       setIsStreaming(false);
       setShowLoading(false);
-      sysIdRef.current = null;
-      botIdRef.current = null;
+      userIdRef.current = null;
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
 
-    es.addEventListener("complete", cleanup);
+    es.addEventListener("complete", () => {
+      cleanup();
+    });
+
     es.onerror = (err) => {
       console.error("SSE error:", err);
       cleanup();
       const errorMsg: Message = {
         id: uuidv4(),
-        text: "❌ Error occurred while processing your request.",
-        sender: "error",
+        content: "❌ Error occurred while processing your request.",
+        role: "error",
         timestamp: Date.now(),
       };
       setMessages((m) => [...m, errorMsg]);
@@ -135,12 +180,11 @@ export function useChat() {
   };
 
   const stopStreaming = () => {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
     setIsStreaming(false);
     setShowLoading(false);
-    sysIdRef.current = null;
-    botIdRef.current = null;
+    userIdRef.current = null;
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
   };
 
   return {

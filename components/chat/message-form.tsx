@@ -6,7 +6,7 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mic, Plus, Send, Square } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
@@ -28,6 +28,8 @@ export function MessageForm({
   onStop,
 }: MessageFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [isComposing, setIsComposing] = useState(false);
 
   const form = useForm<MessageFormData>({
     resolver: zodResolver(messageSchema),
@@ -68,6 +70,7 @@ export function MessageForm({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isComposing) return; // don't send if IME composition is active
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       form.handleSubmit(handleSubmit)();
@@ -93,6 +96,8 @@ export function MessageForm({
                         handleInputChange(e.target.value);
                       }}
                       onKeyDown={handleKeyPress}
+                      onCompositionStart={() => setIsComposing(true)}
+                      onCompositionEnd={() => setIsComposing(false)}
                       placeholder="Ask anything"
                       disabled={isStreaming}
                       className="min-h-[28px] max-h-[120px] resize-none border-0 p-0 text-base !bg-transparent !shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
