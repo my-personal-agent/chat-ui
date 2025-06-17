@@ -4,8 +4,16 @@ import { Message } from "@/types/chat";
 import { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-export function useChat(initialConversationId: string | null = null) {
-  const [messages, setMessages] = useState<Message[]>([]);
+interface UseChatOptions {
+  initialConversationId: string | null;
+  initialMessages?: Message[];
+}
+
+export function useChat({
+  initialConversationId,
+  initialMessages = [],
+}: UseChatOptions) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [conversationId, setConversationId] = useState(initialConversationId);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
@@ -57,7 +65,7 @@ export function useChat(initialConversationId: string | null = null) {
         setConversationId(data.conversation_id);
 
         const url = new URL(window.location.href);
-        url.pathname = `/${data.conversation_id}`;
+        url.pathname = `/chat/${data.conversation_id}`;
         window.history.replaceState({}, "", url.toString());
       }
     });

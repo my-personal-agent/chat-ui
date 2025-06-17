@@ -15,9 +15,9 @@ export function CollapsibleAside({
 }: CollapsibleAsideProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [shouldCollapse, setShouldCollapse] = useState(false);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  // Re-check size whenever content changes
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -28,10 +28,21 @@ export function CollapsibleAside({
     const multi = lines > 1;
 
     setShouldCollapse(multi && !streaming);
-    if (multi) {
-      setOpen(false);
-    }
+    setOpen(false); // collapsed by default
+    setReady(true);
   }, [children, streaming]);
+
+  if (!ready) {
+    // Render hidden for measurement
+    return (
+      <aside
+        ref={ref}
+        className="invisible absolute h-auto whitespace-pre-wrap leading-loose"
+      >
+        {children}
+      </aside>
+    );
+  }
 
   if (!shouldCollapse) {
     return (
@@ -55,7 +66,7 @@ export function CollapsibleAside({
           )}
         >
           {children}
-          {!open && <span className="text-xs text-primary ml-2">... more</span>}
+          {!open && <span className="text-xs text-primary ml-2">...</span>}
         </aside>
       </CollapsibleTrigger>
     </Collapsible>

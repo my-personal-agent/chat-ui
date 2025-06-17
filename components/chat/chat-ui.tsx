@@ -3,14 +3,19 @@
 import { MessageForm } from "@/components/chat/message-form";
 import { MessageList } from "@/components/chat/message-list";
 import { useChat } from "@/hooks/use-chat";
+import { Message } from "@/types/chat";
 
 interface ChatUIProps {
-  conversationId: string | null;
+  initialConversationId: string | null;
+  initialMessages: Message[];
 }
 
-export function ChatUI({ conversationId }: ChatUIProps) {
+export function ChatUI({
+  initialConversationId,
+  initialMessages,
+}: ChatUIProps) {
   const { messages, isStreaming, showLoading, sendMessage, stopStreaming } =
-    useChat(conversationId);
+    useChat({ initialConversationId, initialMessages });
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">

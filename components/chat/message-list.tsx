@@ -15,7 +15,9 @@ export function MessageList({ messages, showLoading }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
   }, [messages]);
 
   const sortedMessages = [...messages].sort((a, b) => {
