@@ -62,7 +62,7 @@ export function NavDocuments({
               >
                 <DropdownMenuItem>
                   <IconFolder />
-                  <span>Open</span>
+                  <span>Rename</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <IconShare3 />

@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { IconInnerShadowTop } from "@tabler/icons-react";
+import Link from "next/link";
 import * as React from "react";
 
 const data = {
@@ -47,10 +48,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
+              <Link href="/" passHref>
                 <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">My Personal AI</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

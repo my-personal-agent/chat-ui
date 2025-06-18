@@ -1,37 +1,38 @@
 "use client";
 
+import { useConversationStore } from "@/stores/useConversationStore";
 import { Message } from "@/types/chat";
 import { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 interface UseChatOptions {
-  initialConversationId: string | null;
-  initialMessages?: Message[];
+  conversationId: string | null;
+  setConversationId: (id: string) => void;
 }
 
-export function useChat({
-  initialConversationId,
-  initialMessages = [],
-}: UseChatOptions) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [conversationId, setConversationId] = useState(initialConversationId);
+export function useChat({ conversationId, setConversationId }: UseChatOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const userIdRef = useRef<string | null>(null);
+
+  const appendMessages = useConversationStore((s) => s.appendMessages);
+  const updateMessage = useConversationStore((s) => s.updateMessage);
 
   const sendMessage = (messageText: string) => {
     eventSourceRef.current?.close();
-    userIdRef.current = null;
 
     const userMsg: Message = {
       id: uuidv4(),
-      content: messageText,
       role: "user",
+      content: messageText,
       timestamp: Date.now(),
     };
-    userIdRef.current = userMsg.id;
-    setMessages((m) => [...m, userMsg]);
+    let currentConversationId = conversationId;
+    if (!currentConversationId) {
+      currentConversationId = "init-" + crypto.randomUUID();
+      setConversationId(currentConversationId);
+    }
+    appendMessages(currentConversationId, [userMsg]);
 
     setIsStreaming(true);
     setShowLoading(true);
@@ -44,24 +45,8 @@ export function useChat({
     eventSourceRef.current = es;
 
     es.addEventListener("init", (e) => {
-      const data = JSON.parse(e.data);
-
-      const id = userIdRef.current;
-      if (!id) return;
-      setMessages((m) =>
-        m.map((msg) =>
-          msg.id === id
-            ? {
-                ...msg,
-                id: data.id,
-                timestamp: data.timestamp,
-              }
-            : msg
-        )
-      );
-      userIdRef.current = data.id;
-
-      if (!conversationId && data.conversation_id) {
+      if (!conversationId || conversationId.startsWith("init-")) {
+        const data = JSON.parse(e.data);
         setConversationId(data.conversation_id);
 
         const url = new URL(window.location.href);
@@ -80,40 +65,28 @@ export function useChat({
         content: data.content,
         isProcessing: false,
       };
-      setMessages((m) => [...m, sysMsg]);
+      appendMessages(data.conversation_id, [sysMsg]);
     });
 
     es.addEventListener("thinking", (e) => {
       const data = JSON.parse(e.data);
-      setMessages((m) =>
-        m.map((msg) =>
-          msg.id === data.id
-            ? {
-                ...msg,
-                content: data.content,
-                timestamp: data.timestamp,
-                isProcessing: true,
-              }
-            : msg
-        )
-      );
+      updateMessage(data.conversation_id, {
+        id: data.id,
+        content: data.content,
+        timestamp: data.timestamp,
+        isProcessing: true,
+      });
     });
 
     es.addEventListener("end_thinking", (e) => {
       setShowLoading(true);
       const data = JSON.parse(e.data);
-      setMessages((m) =>
-        m.map((msg) =>
-          msg.id === data.id
-            ? {
-                ...msg,
-                content: data.content,
-                timestamp: data.timestamp,
-                isProcessing: false,
-              }
-            : msg
-        )
-      );
+      updateMessage(data.conversation_id, {
+        id: data.id,
+        content: data.content,
+        timestamp: data.timestamp,
+        isProcessing: false,
+      });
     });
 
     es.addEventListener("start_messaging", (e) => {
@@ -126,46 +99,33 @@ export function useChat({
         content: data.content,
         isProcessing: false,
       };
-      setMessages((m) => [...m, botMsg]);
+      appendMessages(data.conversation_id, [botMsg]);
     });
 
     es.addEventListener("messaging", (e) => {
       const data = JSON.parse(e.data);
-      setMessages((m) =>
-        m.map((msg) =>
-          msg.id === data.id
-            ? {
-                ...msg,
-                content: data.content,
-                timestamp: data.timestamp,
-                isProcessing: true,
-              }
-            : msg
-        )
-      );
+      updateMessage(data.conversation_id, {
+        id: data.id,
+        content: data.content,
+        timestamp: data.timestamp,
+        isProcessing: true,
+      });
     });
 
     es.addEventListener("end_messaging", (e) => {
       setShowLoading(true);
       const data = JSON.parse(e.data);
-      setMessages((m) =>
-        m.map((msg) =>
-          msg.id === data.id
-            ? {
-                ...msg,
-                content: data.content,
-                timestamp: data.timestamp,
-                isProcessing: false,
-              }
-            : msg
-        )
-      );
+      updateMessage(data.conversation_id, {
+        id: data.id,
+        content: data.content,
+        timestamp: data.timestamp,
+        isProcessing: false,
+      });
     });
 
     const cleanup = () => {
       setIsStreaming(false);
       setShowLoading(false);
-      userIdRef.current = null;
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
@@ -183,20 +143,18 @@ export function useChat({
         role: "error",
         timestamp: Date.now(),
       };
-      setMessages((m) => [...m, errorMsg]);
+      appendMessages(conversationId ?? "temp", [errorMsg]);
     };
   };
 
   const stopStreaming = () => {
     setIsStreaming(false);
     setShowLoading(false);
-    userIdRef.current = null;
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
   };
 
   return {
-    messages,
     isStreaming,
     showLoading,
     sendMessage,
