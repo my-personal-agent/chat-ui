@@ -1,6 +1,6 @@
 "use client";
 
-import { useChatStore } from "@/stores/chatStore";
+import { useChatMessagesStore } from "@/stores/chatMessagesStore";
 import { ChatMessage, WSOutgoing } from "@/types/chat";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -17,7 +17,7 @@ interface WebSocketState {
   setRouter: (router: ReturnType<typeof useRouter>) => void;
 }
 
-export const useChatWebSocket = create<WebSocketState>((set, get) => {
+export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
   let reconnectAttempts = 0;
 
   const connect = () => {
@@ -27,7 +27,7 @@ export const useChatWebSocket = create<WebSocketState>((set, get) => {
     const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/ws/chat`);
     set({ ws });
 
-    const chatStore = useChatStore.getState();
+    const chatStore = useChatMessagesStore.getState();
 
     ws.onopen = () => {
       reconnectAttempts = 0;
@@ -92,7 +92,7 @@ export const useChatWebSocket = create<WebSocketState>((set, get) => {
 
         case "error":
           chatStore.addMessages(data.conversation_id, [data]);
-          set({ isStreaming: false, showLoading: true });
+          set({ isStreaming: false, showLoading: false });
           return;
 
         case "pong":
@@ -124,7 +124,7 @@ export const useChatWebSocket = create<WebSocketState>((set, get) => {
 
   const sendMessage = (text: string) => {
     const { ws } = get();
-    const convoId = useChatStore.getState().conversationId;
+    const convoId = useChatMessagesStore.getState().conversationId;
 
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(
@@ -136,7 +136,7 @@ export const useChatWebSocket = create<WebSocketState>((set, get) => {
       );
       set({
         isStreaming: true,
-        showLoading: false,
+        showLoading: true,
       });
     }
   };
@@ -166,9 +166,9 @@ export const useChatWebSocket = create<WebSocketState>((set, get) => {
   };
 });
 
-export const useInitializeChatWebSocket = () => {
+export const useInitializeChatMessagesWebSocket = () => {
   const router = useRouter();
-  const setRouter = useChatWebSocket((state) => state.setRouter);
+  const setRouter = useChatMessagesWebSocket((state) => state.setRouter);
 
   useEffect(() => {
     setRouter(router);
@@ -176,11 +176,11 @@ export const useInitializeChatWebSocket = () => {
 
   // Return the selectors, not the store itself
   return {
-    ws: useChatWebSocket((state) => state.ws),
-    isStreaming: useChatWebSocket((state) => state.isStreaming),
-    showLoading: useChatWebSocket((state) => state.showLoading),
-    connect: useChatWebSocket((state) => state.connect),
-    sendMessage: useChatWebSocket((state) => state.sendMessage),
-    stopStreaming: useChatWebSocket((state) => state.stopStreaming),
+    ws: useChatMessagesWebSocket((state) => state.ws),
+    isStreaming: useChatMessagesWebSocket((state) => state.isStreaming),
+    showLoading: useChatMessagesWebSocket((state) => state.showLoading),
+    connect: useChatMessagesWebSocket((state) => state.connect),
+    sendMessage: useChatMessagesWebSocket((state) => state.sendMessage),
+    stopStreaming: useChatMessagesWebSocket((state) => state.stopStreaming),
   };
 };

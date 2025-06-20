@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Ellipsis, Folder, Share2, Trash } from "lucide-react";
 
-export function NavDocuments({
+export function NavChats({
   items,
 }: {
   items: {

@@ -1,9 +1,9 @@
 "use client";
 
-import { useChatStore } from "@/stores/chatStore";
-import { useInitializeChatWebSocket } from "@/stores/useChatWebSocket";
+import { useChatMessagesStore } from "@/stores/chatMessagesStore";
+import { useInitializeChatMessagesWebSocket } from "@/stores/useChatMessagesWebSocket";
 import { ChatMessage } from "@/types/chat";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { MessageForm } from "./message-form";
 import { MessageList } from "./message-list";
 
@@ -16,81 +16,19 @@ export function ChatUI({ initialConversationId }: ChatUIProps) {
     conversationId,
     messagesByConvo,
     hasMore,
-    cursor,
-    prependMessages,
+    loadMoreMessages,
     setConversationId,
-    setHasMore,
-    setCursor,
-  } = useChatStore();
+  } = useChatMessagesStore();
 
   const { sendMessage, stopStreaming, isStreaming, showLoading, connect } =
-    useInitializeChatWebSocket();
+    useInitializeChatMessagesWebSocket();
 
-  const [fetching, setFetching] = useState(false);
-
-  // Track which conversations have been loaded and prevent duplicates
-  const loadingRef = useRef<Set<string>>(new Set());
   const initializedRef = useRef(false);
 
   const messages: ChatMessage[] =
     conversationId && messagesByConvo[conversationId]
       ? messagesByConvo[conversationId]
       : [];
-
-  // Stable loadMoreMessages function with better guards
-  const loadMoreMessages = useCallback(
-    async (targetConversationId?: string) => {
-      const convoId = targetConversationId || conversationId;
-
-      if (!convoId || convoId === "new" || fetching) {
-        return;
-      }
-
-      // Check if we're already loading this conversation
-      if (loadingRef.current.has(convoId)) {
-        return;
-      }
-
-      // Check if we have more messages to load
-      if (!hasMore && messagesByConvo[convoId]?.length > 0) {
-        return;
-      }
-
-      loadingRef.current.add(convoId);
-      setFetching(true);
-
-      try {
-        const res = await fetch(
-          `/api/chat/${convoId}/messages?cursor=${cursor ?? ""}`
-        );
-        const data = (await res.json()) as {
-          messages: ChatMessage[];
-          nextCursor: string | null;
-        };
-
-        prependMessages(convoId, data.messages);
-        setHasMore(!!data.nextCursor);
-        setCursor(data.nextCursor);
-      } catch (e) {
-        console.error("Failed to load more messages", e);
-      } finally {
-        setFetching(false);
-        setTimeout(() => {
-          loadingRef.current.delete(convoId);
-        }, 1000);
-      }
-    },
-    [
-      conversationId,
-      fetching,
-      hasMore,
-      cursor,
-      messagesByConvo,
-      prependMessages,
-      setHasMore,
-      setCursor,
-    ]
-  );
 
   // Effect 1: Initialize WebSocket connection (only once)
   useEffect(() => {
@@ -108,24 +46,21 @@ export function ChatUI({ initialConversationId }: ChatUIProps) {
     if (routeConversationId !== conversationId) {
       setConversationId(routeConversationId);
     }
-  }, [conversationId, initialConversationId, setConversationId]); // Removed conversationId to prevent loops
+  }, [conversationId, initialConversationId, setConversationId]);
 
   // Effect 3: Load messages when conversation changes
   useEffect(() => {
     if (
       conversationId &&
       conversationId !== "new" &&
-      !loadingRef.current.has(conversationId)
+      (!messagesByConvo[conversationId] ||
+        messagesByConvo[conversationId].length === 0)
     ) {
-      // Only load if we don't have messages for this conversation yet
-      const existingMessages = messagesByConvo[conversationId];
-      if (!existingMessages || existingMessages.length === 0) {
-        loadMoreMessages(conversationId);
-      }
+      loadMoreMessages(conversationId);
     }
-  }, [conversationId, loadMoreMessages, messagesByConvo]); // Removed loadMoreMessages dependency
+  }, [conversationId, loadMoreMessages, messagesByConvo]);
 
-  // Effect 4: Reconnect WebSocket when conversation changes (debounced)
+  // Effect 4: Reconnect WebSocket when conversation changes
   useEffect(() => {
     if (conversationId && conversationId !== "new") {
       connect();
@@ -140,7 +75,7 @@ export function ChatUI({ initialConversationId }: ChatUIProps) {
         showLoading={showLoading}
         loadMore={() => loadMoreMessages()}
         hasMore={hasMore}
-        fetching={fetching}
+        fetching={false} // removed local fetching state
       />
       <div className="shrink-0 px-4 pb-6">
         <div className="w-full max-w-3xl mx-auto">

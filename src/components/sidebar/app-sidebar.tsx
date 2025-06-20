@@ -1,6 +1,5 @@
 "use client";
 
-import { NavDocuments } from "@/components/sidebar/nav-chats";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavUser } from "@/components/sidebar/nav-user";
 import {
@@ -15,6 +14,7 @@ import {
 import { Bot } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import { NavChats } from "./nav-chats";
 
 const data = {
   user: {
@@ -22,20 +22,6 @@ const data = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-    },
-    {
-      name: "Reports",
-      url: "#",
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-    },
-  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -58,7 +44,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain />
-        <NavDocuments items={data.documents} />
+        <NavChats items={[]} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
