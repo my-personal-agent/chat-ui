@@ -8,12 +8,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const UserSkeletonMessage = () => (
   <div className="flex justify-end">
-    <div className="flex items-center space-x-4">
-      <div className="space-y-2 text-right">
-        <Skeleton className="h-4 w-[250px]" />
-        <Skeleton className="h-4 w-[200px] ml-12" />
-      </div>
+    <div className="flex flex-row-reverse items-center space-x-4 space-x-reverse">
       <Skeleton className="h-8 w-8 rounded-full" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-[250px]" />
+        <Skeleton className="h-4 w-[200px] ml-[50px]" />
+      </div>
     </div>
   </div>
 );
@@ -156,6 +156,12 @@ export function MessageList({
           </>
         )}
 
+        {isNew && showLoading && sortedMessages.length == 0 && (
+          <>
+            <UserSkeletonMessage />
+          </>
+        )}
+
         {fetching &&
           sortedMessages.length > 0 &&
           sortedMessages[0].role == "user" && <SystemOrBotSkeletonMessage />}
@@ -173,7 +179,9 @@ export function MessageList({
         ))}
 
         {/* Typing indicator */}
-        {showLoading && <SystemOrBotSkeletonMessage />}
+        {showLoading && sortedMessages.length > 0 && (
+          <SystemOrBotSkeletonMessage />
+        )}
 
         <div ref={messagesEndRef} />
       </div>

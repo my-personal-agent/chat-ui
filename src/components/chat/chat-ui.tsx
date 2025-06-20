@@ -128,11 +128,7 @@ export function ChatUI({ initialConversationId }: ChatUIProps) {
   // Effect 4: Reconnect WebSocket when conversation changes (debounced)
   useEffect(() => {
     if (conversationId && conversationId !== "new") {
-      const timer = setTimeout(() => {
-        connect();
-      }, 100); // Small delay to prevent rapid reconnections
-
-      return () => clearTimeout(timer);
+      connect();
     }
   }, [conversationId, connect]);
 

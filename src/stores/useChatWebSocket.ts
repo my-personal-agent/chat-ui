@@ -48,7 +48,6 @@ export const useChatWebSocket = create<WebSocketState>((set, get) => {
 
       switch (data.type) {
         case "create":
-          chatStore.setConversationId(data.conversation_id);
           chatStore.setHasMore(false);
           chatStore.setCursor(null);
           router?.push(`/chat/${data.conversation_id}`);
