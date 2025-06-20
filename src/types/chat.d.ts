@@ -17,12 +17,18 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   timestamp: number;
-  conversation_id: string;
+  chat_id: string;
   isProcessing?: boolean;
 }
 
 export interface WSOutgoing {
   type: "ping" | "resume" | "user_message" | "stop";
   message?: string;
-  conversation_id?: string;
+  chat_id?: string;
+}
+
+export interface ChatItem {
+  id: string;
+  title: string;
+  url: string;
 }

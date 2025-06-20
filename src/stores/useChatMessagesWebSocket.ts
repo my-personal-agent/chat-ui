@@ -31,12 +31,12 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
 
     ws.onopen = () => {
       reconnectAttempts = 0;
-      const convoId = chatStore.conversationId;
-      if (convoId) {
+      const chatId = chatStore.chatId;
+      if (chatId) {
         ws.send(
           JSON.stringify({
             type: "resume",
-            conversation_id: convoId,
+            chat_id: chatId,
           } as WSOutgoing)
         );
       }
@@ -50,23 +50,23 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
         case "create":
           chatStore.setHasMore(false);
           chatStore.setCursor(null);
-          router?.push(`/chat/${data.conversation_id}`);
+          router?.push(`/chat/${data.chat_id}`);
           return;
 
         case "init":
-          chatStore.addMessages(data.conversation_id, [data]);
+          chatStore.addMessages(data.chat_id, [data]);
           set({ showLoading: true });
           return;
 
         case "start_thinking":
         case "start_messaging":
-          chatStore.addMessages(data.conversation_id, [data]);
+          chatStore.addMessages(data.chat_id, [data]);
           set({ showLoading: false });
           return;
 
         case "thinking":
         case "messaging":
-          chatStore.updateMessage(data.conversation_id, {
+          chatStore.updateMessage(data.chat_id, {
             id: data.id,
             content: data.content,
             timestamp: data.timestamp,
@@ -77,7 +77,7 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
 
         case "end_thinking":
         case "end_messaging":
-          chatStore.updateMessage(data.conversation_id, {
+          chatStore.updateMessage(data.chat_id, {
             id: data.id,
             content: data.content,
             timestamp: data.timestamp,
@@ -91,7 +91,7 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
           return;
 
         case "error":
-          chatStore.addMessages(data.conversation_id, [data]);
+          chatStore.addMessages(data.chat_id, [data]);
           set({ isStreaming: false, showLoading: false });
           return;
 
@@ -124,14 +124,14 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
 
   const sendMessage = (text: string) => {
     const { ws } = get();
-    const convoId = useChatMessagesStore.getState().conversationId;
+    const chatId = useChatMessagesStore.getState().chatId;
 
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({
           type: "user_message",
           message: text,
-          ...(convoId ? { conversation_id: convoId } : {}),
+          ...(chatId ? { chat_id: chatId } : {}),
         } as WSOutgoing)
       );
       set({

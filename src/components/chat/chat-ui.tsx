@@ -8,17 +8,12 @@ import { MessageForm } from "./message-form";
 import { MessageList } from "./message-list";
 
 interface ChatUIProps {
-  initialConversationId: string;
+  initialChatId: string;
 }
 
-export function ChatUI({ initialConversationId }: ChatUIProps) {
-  const {
-    conversationId,
-    messagesByConvo,
-    hasMore,
-    loadMoreMessages,
-    setConversationId,
-  } = useChatMessagesStore();
+export function ChatUI({ initialChatId }: ChatUIProps) {
+  const { chatId, messagesByChat, hasMore, loadMoreMessages, setChatId } =
+    useChatMessagesStore();
 
   const { sendMessage, stopStreaming, isStreaming, showLoading, connect } =
     useInitializeChatMessagesWebSocket();
@@ -26,9 +21,7 @@ export function ChatUI({ initialConversationId }: ChatUIProps) {
   const initializedRef = useRef(false);
 
   const messages: ChatMessage[] =
-    conversationId && messagesByConvo[conversationId]
-      ? messagesByConvo[conversationId]
-      : [];
+    chatId && messagesByChat[chatId] ? messagesByChat[chatId] : [];
 
   // Effect 1: Initialize WebSocket connection (only once)
   useEffect(() => {
@@ -40,37 +33,35 @@ export function ChatUI({ initialConversationId }: ChatUIProps) {
 
   // Effect 2: Handle route changes and sync with chatStore
   useEffect(() => {
-    const routeConversationId =
-      initialConversationId === "new" ? null : initialConversationId;
+    const routeChatId = initialChatId === "new" ? null : initialChatId;
 
-    if (routeConversationId !== conversationId) {
-      setConversationId(routeConversationId);
+    if (routeChatId !== chatId) {
+      setChatId(routeChatId);
     }
-  }, [conversationId, initialConversationId, setConversationId]);
+  }, [chatId, initialChatId, setChatId]);
 
-  // Effect 3: Load messages when conversation changes
+  // Effect 3: Load messages when chat changes
   useEffect(() => {
     if (
-      conversationId &&
-      conversationId !== "new" &&
-      (!messagesByConvo[conversationId] ||
-        messagesByConvo[conversationId].length === 0)
+      chatId &&
+      chatId !== "new" &&
+      (!messagesByChat[chatId] || messagesByChat[chatId].length === 0)
     ) {
-      loadMoreMessages(conversationId);
+      loadMoreMessages(chatId);
     }
-  }, [conversationId, loadMoreMessages, messagesByConvo]);
+  }, [chatId, loadMoreMessages, messagesByChat]);
 
-  // Effect 4: Reconnect WebSocket when conversation changes
+  // Effect 4: Reconnect WebSocket when chat changes
   useEffect(() => {
-    if (conversationId && conversationId !== "new") {
+    if (chatId && chatId !== "new") {
       connect();
     }
-  }, [conversationId, connect]);
+  }, [chatId, connect]);
 
   return (
     <div className="flex flex-col h-full">
       <MessageList
-        isNew={initialConversationId === "new"}
+        isNew={initialChatId === "new"}
         messages={messages}
         showLoading={showLoading}
         loadMore={() => loadMoreMessages()}

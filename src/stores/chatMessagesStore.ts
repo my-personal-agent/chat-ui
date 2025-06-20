@@ -2,83 +2,80 @@ import { ChatMessage } from "@/types/chat";
 import { create } from "zustand";
 
 interface ChatState {
-  conversationId: string | null;
-  messagesByConvo: Record<string, ChatMessage[]>;
+  chatId: string | null;
+  messagesByChat: Record<string, ChatMessage[]>;
   hasMore: boolean;
   cursor: string | null;
   loadingRef: Set<string>;
-  setMessages: (convoId: string, msgs: ChatMessage[]) => void;
-  addMessages: (convoId: string, msgs: ChatMessage[]) => void;
+  setMessages: (chatId: string, msgs: ChatMessage[]) => void;
+  addMessages: (chatId: string, msgs: ChatMessage[]) => void;
   updateMessage: (
-    convoId: string,
+    chatId: string,
     msg: Partial<ChatMessage> & { id: string }
   ) => void;
   prependMessages: (id: string, messages: ChatMessage[]) => void;
-  setConversationId: (id: string | null) => void;
+  setChatId: (id: string | null) => void;
   setHasMore: (hasMore: boolean) => void;
   setCursor: (cursor: string | null) => void;
-  loadMoreMessages: (conversationId?: string) => Promise<void>;
+  loadMoreMessages: (chatId?: string) => Promise<void>;
 }
 
 export const useChatMessagesStore = create<ChatState>((set, get) => ({
-  conversationId: null,
-  messagesByConvo: {},
+  chatId: null,
+  messagesByChat: {},
   hasMore: true,
   cursor: null,
   loadingRef: new Set(),
 
-  setMessages: (conversationId, msgs) =>
+  setMessages: (chatId, msgs) =>
     set((s) => ({
-      messagesByConvo: {
-        ...s.messagesByConvo,
-        [conversationId]: msgs,
+      messagesByChat: {
+        ...s.messagesByChat,
+        [chatId]: msgs,
       },
     })),
 
-  addMessages: (conversationId, msgs) =>
+  addMessages: (chatId, msgs) =>
     set((s) => {
-      const existing = s.messagesByConvo[conversationId] ?? [];
+      const existing = s.messagesByChat[chatId] ?? [];
       return {
-        messagesByConvo: {
-          ...s.messagesByConvo,
-          [conversationId]: [...existing, ...msgs],
+        messagesByChat: {
+          ...s.messagesByChat,
+          [chatId]: [...existing, ...msgs],
         },
       };
     }),
 
-  updateMessage: (
-    convoId: string,
-    msg: Partial<ChatMessage> & { id: string }
-  ) =>
+  updateMessage: (chatId: string, msg: Partial<ChatMessage> & { id: string }) =>
     set((s) => {
-      const existing = s.messagesByConvo[convoId] ?? [];
+      const existing = s.messagesByChat[chatId] ?? [];
       const updated = existing.map((m) =>
         m.id === msg.id ? { ...m, ...msg } : m
       );
       return {
-        messagesByConvo: {
-          ...s.messagesByConvo,
-          [convoId]: updated,
+        messagesByChat: {
+          ...s.messagesByChat,
+          [chatId]: updated,
         },
       };
     }),
 
   prependMessages: (id, messages) =>
     set((state) => ({
-      messagesByConvo: {
-        ...state.messagesByConvo,
-        [id]: [...messages, ...(state.messagesByConvo[id] || [])],
+      messagesByChat: {
+        ...state.messagesByChat,
+        [id]: [...messages, ...(state.messagesByChat[id] || [])],
       },
     })),
 
-  setConversationId: (id) => set({ conversationId: id }),
+  setChatId: (id) => set({ chatId: id }),
   setHasMore: (hasMore) => set({ hasMore }),
   setCursor: (cursor) => set({ cursor }),
 
-  loadMoreMessages: async (targetConversationId) => {
-    const convoId = targetConversationId || get().conversationId;
+  loadMoreMessages: async (targetChatId) => {
+    const chatId = targetChatId || get().chatId;
     const {
-      messagesByConvo,
+      messagesByChat,
       hasMore,
       cursor,
       prependMessages,
@@ -87,29 +84,29 @@ export const useChatMessagesStore = create<ChatState>((set, get) => ({
       loadingRef,
     } = get();
 
-    if (!convoId || convoId === "new") return;
-    if (loadingRef.has(convoId)) return;
-    if (!hasMore && messagesByConvo[convoId]?.length > 0) return;
+    if (!chatId || chatId === "new") return;
+    if (loadingRef.has(chatId)) return;
+    if (!hasMore && messagesByChat[chatId]?.length > 0) return;
 
-    loadingRef.add(convoId);
+    loadingRef.add(chatId);
 
     try {
       const res = await fetch(
-        `/api/chat/${convoId}/messages?cursor=${cursor ?? ""}`
+        `/api/chats/${chatId}/messages?cursor=${cursor ?? ""}`
       );
       const data = (await res.json()) as {
         messages: ChatMessage[];
         nextCursor: string | null;
       };
 
-      prependMessages(convoId, data.messages);
+      prependMessages(chatId, data.messages);
       setHasMore(!!data.nextCursor);
       setCursor(data.nextCursor);
     } catch (e) {
       console.error("Failed to load more messages", e);
     } finally {
       setTimeout(() => {
-        loadingRef.delete(convoId);
+        loadingRef.delete(chatId);
       }, 1000);
     }
   },
