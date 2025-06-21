@@ -14,7 +14,7 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
-  // const isBot = message.sender === "bot";
+  // const isAssistant = message.sender === "assistant";
   const isError = message.role === "error";
 
   const baseBubbleClass = isUser

@@ -1,8 +1,9 @@
-export type ChatRole = "user" | "system" | "bot" | "error";
+export type ChatRole = "user" | "system" | "assistant" | "error";
 
 export interface ChatMessage {
   type:
-    | "create"
+    | "create_chat"
+    | "update_chat"
     | "init"
     | "start_thinking"
     | "thinking"
@@ -10,6 +11,8 @@ export interface ChatMessage {
     | "start_messaging"
     | "messaging"
     | "end_messaging"
+    | "checking_title"
+    | "generated_title"
     | "error"
     | "complete"
     | "pong";
@@ -31,4 +34,6 @@ export interface ChatItem {
   id: string;
   title: string;
   url: string;
+  timestamp: float;
+  isProcessing?: boolean;
 }

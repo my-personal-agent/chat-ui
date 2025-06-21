@@ -18,7 +18,7 @@ const UserSkeletonMessage = () => (
   </div>
 );
 
-const SystemOrBotSkeletonMessage = () => (
+const SystemOrAssistantSkeletonMessage = () => (
   <div className="flex justify-start">
     <div className="flex items-center space-x-4">
       <Skeleton className="h-8 w-8 rounded-full" />
@@ -36,7 +36,6 @@ interface MessageListProps {
   showLoading: boolean;
   loadMore: () => Promise<void>;
   hasMore: boolean;
-  fetching: boolean;
 }
 
 export function MessageList({
@@ -45,7 +44,6 @@ export function MessageList({
   showLoading,
   loadMore,
   hasMore,
-  fetching,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -132,11 +130,6 @@ export function MessageList({
     }
   }, [hasMore, loadMore, checkIfNearBottom]);
 
-  // Sync loading state with ref
-  useEffect(() => {
-    fetchingRef.current = fetching;
-  }, [fetching]);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -152,7 +145,7 @@ export function MessageList({
         {!isNew && sortedMessages.length == 0 && (
           <>
             <UserSkeletonMessage />
-            <SystemOrBotSkeletonMessage />
+            <SystemOrAssistantSkeletonMessage />
           </>
         )}
 
@@ -162,11 +155,13 @@ export function MessageList({
           </>
         )}
 
-        {fetching &&
+        {fetchingRef.current &&
           sortedMessages.length > 0 &&
-          sortedMessages[0].role == "user" && <SystemOrBotSkeletonMessage />}
+          sortedMessages[0].role == "user" && (
+            <SystemOrAssistantSkeletonMessage />
+          )}
 
-        {fetching &&
+        {fetchingRef.current &&
           sortedMessages.length > 0 &&
           sortedMessages[0].role != "user" && <UserSkeletonMessage />}
 
@@ -180,7 +175,7 @@ export function MessageList({
 
         {/* Typing indicator */}
         {showLoading && sortedMessages.length > 0 && (
-          <SystemOrBotSkeletonMessage />
+          <SystemOrAssistantSkeletonMessage />
         )}
 
         <div ref={messagesEndRef} />

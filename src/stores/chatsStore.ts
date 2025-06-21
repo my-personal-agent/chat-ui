@@ -3,46 +3,78 @@ import { create } from "zustand";
 
 interface ChatState {
   chats: ChatItem[];
-  page: number;
-  pageSize: number;
+  cursor: string | null;
   hasMore: boolean;
+  fetching: boolean;
 
   loadChats: () => Promise<void>;
-  loadMore: () => void;
-  addChat: (chat: ChatItem) => void;
-  updateChatTitle: (chatId: string, newTitle: string) => void;
+  addChats: (newChats: ChatItem[]) => void;
+  prependChats: (oldChats: ChatItem[]) => void;
+  updateChat: (updatedChat: Partial<ChatItem> & { id: string }) => void;
+  setHasMore: (hasMore: boolean) => void;
+  setCursor: (cursor: string | null) => void;
+}
+
+interface ApiChat {
+  id: string;
+  title: string;
+  timestamp: number;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
-  page: 1,
-  pageSize: 10,
+  cursor: null,
   hasMore: true,
+  fetching: false,
 
   loadChats: async () => {
-    const { page, pageSize } = get();
-    const res = await fetch(`/api/chats?page=${page}&limit=${pageSize}`);
-    const data: ChatItem[] = await res.json();
-    set((state) => ({
-      chats: [...state.chats, ...data],
-      hasMore: data.length === state.pageSize,
-    }));
+    const { fetching, cursor, hasMore, prependChats, setHasMore, setCursor } =
+      get();
+    if (fetching || !hasMore) return;
+
+    set({ fetching: true });
+
+    try {
+      const res = await fetch(`/api/chats?cursor=${cursor ?? ""}`);
+      const data = await res.json();
+
+      // transform chat object to include `url`
+      const mappedChats: ChatItem[] = (data.chats as ApiChat[]).map(
+        (chat: ApiChat): ChatItem => ({
+          id: chat.id,
+          title: chat.title,
+          url: `/chat/${chat.id}`, // generate URL here
+          timestamp: chat.timestamp,
+        })
+      );
+
+      prependChats(mappedChats);
+      setHasMore(!!data.nextCursor);
+      setCursor(data.nextCursor);
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+    } finally {
+      set({ fetching: false });
+    }
   },
 
-  loadMore: () => {
-    set((state) => ({ page: state.page + 1 }), false);
-    get().loadChats();
-  },
-
-  addChat: (chat) =>
+  addChats: (newChats) =>
     set((state) => ({
-      chats: [chat, ...state.chats],
+      chats: [...state.chats, ...newChats],
     })),
 
-  updateChatTitle: (chatId, newTitle) =>
+  prependChats: (oldChats) =>
     set((state) => ({
-      chats: state.chats.map((c) =>
-        c.id === chatId ? { ...c, name: newTitle } : c
+      chats: [...oldChats, ...state.chats],
+    })),
+
+  updateChat: (updatedChat: Partial<ChatItem> & { id: string }) =>
+    set((state) => ({
+      chats: state.chats.map((chat) =>
+        chat.id === updatedChat.id ? { ...chat, ...updatedChat } : chat
       ),
     })),
+
+  setHasMore: (hasMore) => set({ hasMore }),
+  setCursor: (cursor) => set({ cursor }),
 }));

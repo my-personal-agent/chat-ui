@@ -1,7 +1,7 @@
 "use client";
 
+import { useInitializeChatMessagesWebSocket } from "@/hooks/useChatMessagesWebSocket";
 import { useChatMessagesStore } from "@/stores/chatMessagesStore";
-import { useInitializeChatMessagesWebSocket } from "@/stores/useChatMessagesWebSocket";
 import { ChatMessage } from "@/types/chat";
 import { useEffect, useRef } from "react";
 import { MessageForm } from "./message-form";
@@ -66,7 +66,6 @@ export function ChatUI({ initialChatId }: ChatUIProps) {
         showLoading={showLoading}
         loadMore={() => loadMoreMessages()}
         hasMore={hasMore}
-        fetching={false} // removed local fetching state
       />
       <div className="shrink-0 px-4 pb-6">
         <div className="w-full max-w-3xl mx-auto">
