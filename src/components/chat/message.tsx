@@ -7,11 +7,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/types/chat";
 import { AlertCircle, Bot, User } from "lucide-react";
 
-interface MessageBubbleProps {
+interface MessageProps {
   message: ChatMessage;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function Message({ message }: MessageProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   // const isAssistant = message.sender === "assistant";

@@ -12,8 +12,15 @@ interface ChatUIProps {
 }
 
 export function ChatUI({ initialChatId }: ChatUIProps) {
-  const { chatId, messagesByChat, hasMore, loadMoreMessages, setChatId } =
-    useChatMessagesStore();
+  const {
+    chatId,
+    messagesByChat,
+    hasMore,
+    loadMoreMessages,
+    setChatId,
+    setCursor,
+    setHasMore,
+  } = useChatMessagesStore();
 
   const { sendMessage, stopStreaming, isStreaming, showLoading, connect } =
     useInitializeChatMessagesWebSocket();
@@ -36,9 +43,10 @@ export function ChatUI({ initialChatId }: ChatUIProps) {
     const routeChatId = initialChatId === "new" ? null : initialChatId;
 
     if (routeChatId !== chatId) {
+      setCursor(null);
       setChatId(routeChatId);
     }
-  }, [chatId, initialChatId, setChatId]);
+  }, [chatId, initialChatId, setChatId, setCursor, setHasMore]);
 
   // Effect 3: Load messages when chat changes
   useEffect(() => {

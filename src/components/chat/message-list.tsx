@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageBubble } from "@/components/chat/message";
+import { Message } from "@/components/chat/message";
 import { WelcomeScreen } from "@/components/chat/welcome-screen";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/types/chat";
@@ -50,6 +50,7 @@ export function MessageList({
   const lastScrollTopRef = useRef(0);
   const fetchingRef = useRef(false);
   const isInitialLoadRef = useRef(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
@@ -62,30 +63,79 @@ export function MessageList({
     });
   }, [messages]);
 
-  // Scroll to bottom when new messages arrive (but only if user is near bottom)
-  useEffect(() => {
-    if (isInitialLoadRef.current || shouldAutoScroll) {
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      });
-      isInitialLoadRef.current = false;
-    }
-  }, [sortedMessages, shouldAutoScroll]);
+  // Robust scroll to bottom function
+  const scrollToBottom = useCallback(
+    (force = false) => {
+      const container = containerRef.current;
 
-  // Check if user is near bottom to determine auto-scroll behavior
+      if (
+        !container ||
+        (!shouldAutoScroll && !force && !isInitialLoadRef.current)
+      ) {
+        return;
+      }
+
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      const performScroll = () => {
+        if (!container) return;
+
+        // Force scroll to absolute bottom
+        container.scrollTop = container.scrollHeight;
+
+        // Double-check after a small delay to handle dynamic content
+        setTimeout(() => {
+          if (
+            container &&
+            container.scrollTop <
+              container.scrollHeight - container.clientHeight - 50
+          ) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }, 50);
+      };
+
+      // Immediate scroll
+      performScroll();
+
+      // Delayed scroll to handle dynamic content rendering (like code blocks)
+      scrollTimeoutRef.current = setTimeout(performScroll, 100);
+
+      // Final scroll attempt for stubborn content
+      setTimeout(performScroll, 300);
+    },
+    [shouldAutoScroll]
+  );
+
+  // Enhanced bottom detection
   const checkIfNearBottom = useCallback(() => {
     const container = containerRef.current;
     if (!container) return true;
 
-    const threshold = 100; // pixels from bottom
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      threshold;
+    const threshold = 150; // Increased threshold for better detection
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isNearBottom = distanceFromBottom < threshold;
 
     setShouldAutoScroll(isNearBottom);
     return isNearBottom;
   }, []);
 
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (isInitialLoadRef.current || shouldAutoScroll) {
+      scrollToBottom(true);
+      isInitialLoadRef.current = false;
+    }
+  }, [sortedMessages, scrollToBottom, shouldAutoScroll]);
+
+  // Enhanced scroll handler
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
 
@@ -117,8 +167,9 @@ export function MessageList({
           requestAnimationFrame(() => {
             if (container) {
               const newScrollHeight = container.scrollHeight;
-              container.scrollTop =
+              const newScrollTop =
                 newScrollHeight - scrollHeight + currentScrollTop;
+              container.scrollTop = Math.max(0, newScrollTop);
             }
           });
         })
@@ -135,11 +186,28 @@ export function MessageList({
     if (!container) return;
 
     container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [handleScroll]);
 
+  // Handle loading state changes
+  useEffect(() => {
+    if (showLoading && shouldAutoScroll) {
+      // Small delay to ensure loading skeleton is rendered
+      setTimeout(() => scrollToBottom(true), 50);
+    }
+  }, [showLoading, scrollToBottom, shouldAutoScroll]);
+
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto">
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto scroll-smooth"
+      style={{ scrollBehavior: "smooth" }}
+    >
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* Loading indicator at top when loading more messages */}
         {!isNew && sortedMessages.length == 0 && (
@@ -155,22 +223,12 @@ export function MessageList({
           </>
         )}
 
-        {fetchingRef.current &&
-          sortedMessages.length > 0 &&
-          sortedMessages[0].role == "user" && (
-            <SystemOrAssistantSkeletonMessage />
-          )}
-
-        {fetchingRef.current &&
-          sortedMessages.length > 0 &&
-          sortedMessages[0].role != "user" && <UserSkeletonMessage />}
-
         {isNew && !showLoading && sortedMessages.length === 0 && (
           <WelcomeScreen />
         )}
 
         {sortedMessages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <Message key={message.id} message={message} />
         ))}
 
         {/* Typing indicator */}
@@ -178,7 +236,12 @@ export function MessageList({
           <SystemOrAssistantSkeletonMessage />
         )}
 
-        <div ref={messagesEndRef} />
+        {/* Scroll anchor - positioned to ensure proper scrolling */}
+        <div
+          ref={messagesEndRef}
+          className="h-1 w-full"
+          style={{ minHeight: "1px" }}
+        />
       </div>
     </div>
   );
