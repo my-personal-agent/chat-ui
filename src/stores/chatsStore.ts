@@ -49,8 +49,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       );
 
       prependChats(mappedChats);
-      setHasMore(!!data.nextCursor);
-      setCursor(data.nextCursor);
+      setHasMore(!!data.next_cursor);
+      setCursor(data.next_cursor);
     } catch (err) {
       console.error("Failed to load chats:", err);
     } finally {

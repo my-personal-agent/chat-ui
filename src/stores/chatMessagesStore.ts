@@ -96,12 +96,12 @@ export const useChatMessagesStore = create<ChatState>((set, get) => ({
       );
       const data = (await res.json()) as {
         messages: ChatMessage[];
-        nextCursor: string | null;
+        next_cursor: string | null;
       };
 
       prependMessages(chatId, data.messages);
-      setHasMore(!!data.nextCursor);
-      setCursor(data.nextCursor);
+      setHasMore(!!data.next_cursor);
+      setCursor(data.next_cursor);
     } catch (e) {
       console.error("Failed to load more messages", e);
     } finally {
