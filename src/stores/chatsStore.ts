@@ -8,6 +8,7 @@ interface ChatState {
   fetching: boolean;
 
   loadChats: () => Promise<void>;
+  deleteChat: (chatId: string) => Promise<void>;
   addChats: (newChats: ChatItem[]) => void;
   prependChats: (oldChats: ChatItem[]) => void;
   updateChat: (updatedChat: Partial<ChatItem> & { id: string }) => void;
@@ -56,6 +57,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } finally {
       set({ fetching: false });
     }
+  },
+
+  deleteChat: async (chatId: string) => {
+    await fetch(`/api/chats/${chatId}`, {
+      method: "DELETE",
+    });
+
+    set((state) => ({
+      chats: state.chats.filter((chat) => chat.id !== chatId),
+    }));
   },
 
   addChats: (newChats) =>

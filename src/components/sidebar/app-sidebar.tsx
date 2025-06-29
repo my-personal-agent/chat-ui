@@ -27,7 +27,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { chats, loadChats, fetching, hasMore } = useChatStore();
+  const { chats, loadChats, fetching, hasMore, deleteChat } = useChatStore();
   const sidebarContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,6 +57,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, [handleScroll]);
 
+  const handleDeleteChat = useCallback(
+    async (chatId: string) => {
+      await deleteChat(chatId);
+    },
+    [deleteChat]
+  );
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -76,7 +83,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent ref={sidebarContentRef} className="overflow-y-auto">
         <NavMain />
-        <NavChats chats={chats} fetching={fetching} />
+        <NavChats
+          chats={chats}
+          fetching={fetching}
+          onDeleteChat={handleDeleteChat}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
