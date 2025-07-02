@@ -241,7 +241,10 @@ export function MessageList({
             const confirmation =
               message.content as StreamChatMessageConfirmation;
 
-            if (confirmation.name === "send_gmail") {
+            if (
+              confirmation.name === "send_gmail" ||
+              confirmation.name === "transfer_to_google_agent"
+            ) {
               return (
                 <ConfirmEmailSend
                   sendConfirmation={sendConfirmation}
