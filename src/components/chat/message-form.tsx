@@ -19,12 +19,14 @@ type MessageFormData = z.infer<typeof messageSchema>;
 interface MessageFormProps {
   onSubmit: (message: string) => void;
   isStreaming: boolean;
+  showingConfirmation: boolean;
   onStop: () => void;
 }
 
 export function MessageForm({
   onSubmit,
   isStreaming,
+  showingConfirmation,
   onStop,
 }: MessageFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -61,7 +63,7 @@ export function MessageForm({
   }, [watchedMessage]);
 
   const handleSubmit = (data: MessageFormData) => {
-    if (isStreaming) return;
+    if (isStreaming || showingConfirmation) return;
     onSubmit(data.message);
     form.reset();
     if (textareaRef.current) {
@@ -99,7 +101,7 @@ export function MessageForm({
                       onCompositionStart={() => setIsComposing(true)}
                       onCompositionEnd={() => setIsComposing(false)}
                       placeholder="Ask anything"
-                      disabled={isStreaming}
+                      disabled={isStreaming || showingConfirmation}
                       className="min-h-[28px] max-h-[120px] resize-none border-0 p-0 text-base !bg-transparent !shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
                     />
                   </FormControl>
@@ -130,15 +132,26 @@ export function MessageForm({
               >
                 <Mic className="w-4 h-4" />
               </Button>
-              {isStreaming ? (
-                <Button
-                  type="button"
-                  onClick={onStop}
-                  size="icon"
-                  className="h-8 w-8 rounded-full"
-                >
-                  <Square className="w-4 h-4" />
-                </Button>
+              {isStreaming || showingConfirmation ? (
+                isStreaming ? (
+                  <Button
+                    type="button"
+                    onClick={onStop}
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                  >
+                    <Square className="w-4 h-4" />
+                  </Button>
+                ) : showingConfirmation ? (
+                  <Button
+                    type="button"
+                    disabled={true}
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                ) : null
               ) : (
                 <Button
                   type="submit"

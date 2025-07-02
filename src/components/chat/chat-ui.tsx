@@ -2,7 +2,7 @@
 
 import { useInitializeChatMessagesWebSocket } from "@/hooks/useChatMessagesWebSocket";
 import { useChatMessagesStore } from "@/stores/chatMessagesStore";
-import { ChatMessage } from "@/types/chat";
+import { StreamChatMessage } from "@/types/chat";
 import { useEffect, useRef } from "react";
 import { MessageForm } from "./message-form";
 import { MessageList } from "./message-list";
@@ -22,12 +22,19 @@ export function ChatUI({ initialChatId }: ChatUIProps) {
     setHasMore,
   } = useChatMessagesStore();
 
-  const { sendMessage, stopStreaming, isStreaming, showLoading, connect } =
-    useInitializeChatMessagesWebSocket();
+  const {
+    sendMessage,
+    sendConfirmation,
+    stopStreaming,
+    isStreaming,
+    showLoading,
+    showingConfirmation,
+    connect,
+  } = useInitializeChatMessagesWebSocket();
 
   const initializedRef = useRef(false);
 
-  const messages: ChatMessage[] =
+  const messages: StreamChatMessage[] =
     chatId && messagesByChat[chatId] ? messagesByChat[chatId] : [];
 
   // Effect 1: Initialize WebSocket connection (only once)
@@ -72,8 +79,10 @@ export function ChatUI({ initialChatId }: ChatUIProps) {
         isNew={initialChatId === "new"}
         messages={messages}
         showLoading={showLoading}
+        isStreaming={isStreaming}
         loadMore={() => loadMoreMessages()}
         hasMore={hasMore}
+        sendConfirmation={sendConfirmation}
       />
       <div className="shrink-0 px-4 pb-6">
         <div className="w-full max-w-3xl mx-auto">
@@ -81,6 +90,7 @@ export function ChatUI({ initialChatId }: ChatUIProps) {
             onSubmit={sendMessage}
             onStop={stopStreaming}
             isStreaming={isStreaming}
+            showingConfirmation={showingConfirmation}
           />
         </div>
       </div>

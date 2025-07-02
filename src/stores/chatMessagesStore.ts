@@ -1,19 +1,19 @@
-import { ChatMessage } from "@/types/chat";
+import { StreamChatMessage } from "@/types/chat";
 import { create } from "zustand";
 
 interface ChatState {
   chatId: string | null;
-  messagesByChat: Record<string, ChatMessage[]>;
+  messagesByChat: Record<string, StreamChatMessage[]>;
   hasMore: boolean;
   cursor: string | null;
   loadingRef: Set<string>;
-  setMessages: (chatId: string, msgs: ChatMessage[]) => void;
-  addMessages: (chatId: string, msgs: ChatMessage[]) => void;
+  setMessages: (chatId: string, msgs: StreamChatMessage[]) => void;
+  addMessages: (chatId: string, msgs: StreamChatMessage[]) => void;
   updateMessage: (
     chatId: string,
-    msg: Partial<ChatMessage> & { id: string }
+    msg: Partial<StreamChatMessage> & { id: string }
   ) => void;
-  prependMessages: (id: string, messages: ChatMessage[]) => void;
+  prependMessages: (id: string, messages: StreamChatMessage[]) => void;
   setChatId: (id: string | null) => void;
   setHasMore: (hasMore: boolean) => void;
   setCursor: (cursor: string | null) => void;
@@ -46,7 +46,10 @@ export const useChatMessagesStore = create<ChatState>((set, get) => ({
       };
     }),
 
-  updateMessage: (chatId: string, msg: Partial<ChatMessage> & { id: string }) =>
+  updateMessage: (
+    chatId: string,
+    msg: Partial<StreamChatMessage> & { id: string }
+  ) =>
     set((s) => {
       const existing = s.messagesByChat[chatId] ?? [];
       const updated = existing.map((m) =>
@@ -95,7 +98,7 @@ export const useChatMessagesStore = create<ChatState>((set, get) => ({
         `/api/chats/${chatId}/messages?cursor=${cursor ?? ""}`
       );
       const data = (await res.json()) as {
-        messages: ChatMessage[];
+        messages: StreamChatMessage[];
         next_cursor: string | null;
       };
 

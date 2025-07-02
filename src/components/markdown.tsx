@@ -40,7 +40,7 @@ export function Markdown({ content }: MarkdownProps) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary underline"
+            className="underline"
             {...props}
           >
             {children}

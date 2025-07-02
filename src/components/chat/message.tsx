@@ -4,11 +4,11 @@ import { CollapsibleAside } from "@/components/collapsible-aside";
 import { Markdown } from "@/components/markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChatMessage } from "@/types/chat";
+import { StreamChatMessage } from "@/types/chat";
 import { AlertCircle, Bot, User } from "lucide-react";
 
 interface MessageProps {
-  message: ChatMessage;
+  message: StreamChatMessage;
 }
 
 export function Message({ message }: MessageProps) {
@@ -47,10 +47,10 @@ export function Message({ message }: MessageProps) {
             <div className="prose prose-neutral dark:prose-invert max-w-none space-y-2">
               {isSystem ? (
                 <CollapsibleAside streaming={message.isProcessing ?? false}>
-                  {message.content}
+                  {message.content as string}
                 </CollapsibleAside>
               ) : (
-                <Markdown content={message.content} />
+                <Markdown content={message.content as string} />
               )}
             </div>
 

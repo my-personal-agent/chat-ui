@@ -3,8 +3,13 @@
 import { Message } from "@/components/chat/message";
 import { WelcomeScreen } from "@/components/chat/welcome-screen";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChatMessage } from "@/types/chat";
+import {
+  SendConfrimation,
+  StreamChatMessage,
+  StreamChatMessageConfirmation,
+} from "@/types/chat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmEmailSend } from "./confirm-emai-send";
 
 const UserSkeletonMessage = () => (
   <div className="flex justify-end">
@@ -32,18 +37,22 @@ const SystemOrAssistantSkeletonMessage = () => (
 
 interface MessageListProps {
   isNew: boolean;
-  messages: ChatMessage[];
+  messages: StreamChatMessage[];
   showLoading: boolean;
+  isStreaming: boolean;
   loadMore: () => Promise<void>;
   hasMore: boolean;
+  sendConfirmation: (msgId: string, approval: SendConfrimation) => void;
 }
 
 export function MessageList({
   isNew,
   messages,
   showLoading,
+  isStreaming,
   loadMore,
   hasMore,
+  sendConfirmation,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -227,9 +236,25 @@ export function MessageList({
           <WelcomeScreen />
         )}
 
-        {sortedMessages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
+        {sortedMessages.map((message) => {
+          if (message.role === "confirmation") {
+            const confirmation =
+              message.content as StreamChatMessageConfirmation;
+
+            if (confirmation.name === "send_gmail") {
+              return (
+                <ConfirmEmailSend
+                  sendConfirmation={sendConfirmation}
+                  key={message.id}
+                  message={message}
+                  isStreaming={isStreaming}
+                />
+              );
+            }
+          }
+
+          return <Message key={message.id} message={message} />;
+        })}
 
         {/* Typing indicator */}
         {showLoading && sortedMessages.length > 0 && (

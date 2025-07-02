@@ -2,7 +2,7 @@
 
 import { useChatMessagesStore } from "@/stores/chatMessagesStore";
 import { useChatStore } from "@/stores/chatsStore";
-import { ChatMessage, WSOutgoing } from "@/types/chat";
+import { SendConfrimation, StreamChatMessage, WSOutgoing } from "@/types/chat";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { create } from "zustand";
@@ -11,9 +11,11 @@ interface WebSocketState {
   ws: WebSocket | null;
   isStreaming: boolean;
   showLoading: boolean;
+  showingConfirmation: boolean;
   router: ReturnType<typeof useRouter> | null;
   connect: () => void;
   sendMessage: (text: string) => void;
+  sendConfirmation: (msgId: string, confirmation: SendConfrimation) => void;
   stopStreaming: () => void;
   setRouter: (router: ReturnType<typeof useRouter>) => void;
 }
@@ -45,7 +47,7 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
     };
 
     ws.onmessage = (e) => {
-      const data = JSON.parse(e.data) as ChatMessage;
+      const data = JSON.parse(e.data) as StreamChatMessage;
       const { router } = get();
 
       switch (data.type) {
@@ -55,12 +57,13 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
           chatsStore.addChats([
             {
               id: data.chat_id,
-              title: data.content,
+              title: data.content as string,
               timestamp: data.timestamp,
               url: `/chat/${data.chat_id}`,
             },
           ]);
           router?.push(`/chat/${data.chat_id}`);
+          set({ showLoading: false, showingConfirmation: false });
           return;
 
         case "update_chat":
@@ -68,11 +71,12 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
             id: data.chat_id,
             timestamp: data.timestamp,
           });
+          set({ showLoading: false, showingConfirmation: false });
           return;
 
         case "init":
           chatMessagesStore.addMessages(data.chat_id, [data]);
-          set({ showLoading: true });
+          set({ showLoading: true, showingConfirmation: false });
           return;
 
         case "start_thinking":
@@ -80,7 +84,7 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
           chatMessagesStore.addMessages(data.chat_id, [
             { ...data, isProcessing: true },
           ]);
-          set({ showLoading: false });
+          set({ showLoading: false, showingConfirmation: false });
           return;
 
         case "thinking":
@@ -91,7 +95,7 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
             timestamp: data.timestamp,
             isProcessing: true,
           });
-          set({ showLoading: false });
+          set({ showLoading: false, showingConfirmation: false });
           return;
 
         case "end_thinking":
@@ -102,7 +106,7 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
             timestamp: data.timestamp,
             isProcessing: false,
           });
-          set({ showLoading: true });
+          set({ showLoading: true, showingConfirmation: false });
           return;
 
         case "checking_title":
@@ -110,26 +114,55 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
             id: data.chat_id,
             isProcessing: true,
           });
-          set({ showLoading: false });
+          set({ showLoading: false, showingConfirmation: false });
           return;
 
         case "generated_title":
           chatsStore.updateChat({
             id: data.chat_id,
-            title: data.content,
+            title: data.content as string,
             timestamp: data.timestamp,
             isProcessing: false,
           });
-          set({ showLoading: false });
+          set({ showLoading: false, showingConfirmation: false });
+          return;
+
+        case "confirmation":
+          chatMessagesStore.addMessages(data.chat_id, [data]);
+          set({
+            showLoading: false,
+            isStreaming: false,
+            showingConfirmation: true,
+          });
+          return;
+
+        case "end_confirmation":
+          console.log(data);
+          chatMessagesStore.updateMessage(data.chat_id, {
+            id: data.id,
+            content: data.content,
+            timestamp: data.timestamp,
+          });
+          set({
+            showingConfirmation: false,
+          });
           return;
 
         case "complete":
-          set({ isStreaming: false, showLoading: false });
+          set({
+            isStreaming: false,
+            showLoading: false,
+            showingConfirmation: false,
+          });
           return;
 
         case "error":
           chatMessagesStore.addMessages(data.chat_id, [data]);
-          set({ isStreaming: false, showLoading: false });
+          set({
+            isStreaming: false,
+            showLoading: false,
+            showingConfirmation: false,
+          });
           return;
 
         case "pong":
@@ -164,6 +197,10 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
     const chatId = useChatMessagesStore.getState().chatId;
 
     if (ws?.readyState === WebSocket.OPEN) {
+      set({
+        isStreaming: true,
+        showLoading: true,
+      });
       ws.send(
         JSON.stringify({
           type: "user_message",
@@ -171,10 +208,28 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
           ...(chatId ? { chat_id: chatId } : {}),
         } as WSOutgoing)
       );
+    }
+  };
+
+  const sendConfirmation = (msgId: string, confirmation: SendConfrimation) => {
+    const { ws } = get();
+    const chatId = useChatMessagesStore.getState().chatId;
+
+    if (ws?.readyState === WebSocket.OPEN && chatId) {
       set({
+        showingConfirmation: false,
         isStreaming: true,
         showLoading: true,
       });
+
+      ws.send(
+        JSON.stringify({
+          type: "user_message",
+          message: confirmation,
+          chat_id: chatId,
+          msg_id: msgId,
+        } as WSOutgoing)
+      );
     }
   };
 
@@ -194,10 +249,12 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
     ws: null,
     isStreaming: false,
     showLoading: false,
+    showingConfirmation: false,
     router: null,
     initUserMsg: null,
     connect,
     sendMessage,
+    sendConfirmation,
     stopStreaming,
     setRouter,
   };
@@ -216,8 +273,14 @@ export const useInitializeChatMessagesWebSocket = () => {
     ws: useChatMessagesWebSocket((state) => state.ws),
     isStreaming: useChatMessagesWebSocket((state) => state.isStreaming),
     showLoading: useChatMessagesWebSocket((state) => state.showLoading),
+    showingConfirmation: useChatMessagesWebSocket(
+      (state) => state.showingConfirmation
+    ),
     connect: useChatMessagesWebSocket((state) => state.connect),
     sendMessage: useChatMessagesWebSocket((state) => state.sendMessage),
+    sendConfirmation: useChatMessagesWebSocket(
+      (state) => state.sendConfirmation
+    ),
     stopStreaming: useChatMessagesWebSocket((state) => state.stopStreaming),
   };
 };

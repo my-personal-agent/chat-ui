@@ -1,6 +1,17 @@
-export type ChatRole = "user" | "system" | "assistant" | "error";
+export type ChatRole =
+  | "user"
+  | "system"
+  | "assistant"
+  | "confirmation"
+  | "error";
 
-export interface ChatMessage {
+export interface StreamChatMessageConfirmation {
+  name: str;
+  args: { [key: string]: string };
+  approve?: boolean;
+}
+
+export interface StreamChatMessage {
   type:
     | "create_chat"
     | "update_chat"
@@ -13,24 +24,31 @@ export interface ChatMessage {
     | "end_messaging"
     | "checking_title"
     | "generated_title"
+    | "confirmation"
+    | "end_confirmation"
     | "error"
     | "complete"
     | "pong";
   id: string;
   role: ChatRole;
-  content: string;
+  content: string | StreamChatMessageConfirmation;
   timestamp: number;
   chat_id: string;
   isProcessing?: boolean;
 }
 
-export interface WSOutgoing {
-  type: "ping" | "resume" | "user_message" | "stop";
-  message?: string;
-  chat_id?: string;
+export interface SendConfrimation {
+  approve: "accept" | "deny";
 }
 
-export interface ChatItem {
+export interface WSOutgoing {
+  type: "ping" | "resume" | "user_message" | "stop";
+  message?: string | SendConfrimation;
+  chat_id?: string;
+  msg_id?: string;
+}
+
+export interface ChatMessage {
   id: string;
   title: string;
   url: string;

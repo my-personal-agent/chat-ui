@@ -1,17 +1,17 @@
-import { ChatItem } from "@/types/chat";
+import { ChatMessage } from "@/types/chat";
 import { create } from "zustand";
 
 interface ChatState {
-  chats: ChatItem[];
+  chats: ChatMessage[];
   cursor: string | null;
   hasMore: boolean;
   fetching: boolean;
 
   loadChats: () => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
-  addChats: (newChats: ChatItem[]) => void;
-  prependChats: (oldChats: ChatItem[]) => void;
-  updateChat: (updatedChat: Partial<ChatItem> & { id: string }) => void;
+  addChats: (newChats: ChatMessage[]) => void;
+  prependChats: (oldChats: ChatMessage[]) => void;
+  updateChat: (updatedChat: Partial<ChatMessage> & { id: string }) => void;
   setHasMore: (hasMore: boolean) => void;
   setCursor: (cursor: string | null) => void;
 }
@@ -40,8 +40,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const data = await res.json();
 
       // transform chat object to include `url`
-      const mappedChats: ChatItem[] = (data.chats as ApiChat[]).map(
-        (chat: ApiChat): ChatItem => ({
+      const mappedChats: ChatMessage[] = (data.chats as ApiChat[]).map(
+        (chat: ApiChat): ChatMessage => ({
           id: chat.id,
           title: chat.title,
           url: `/chat/${chat.id}`, // generate URL here
@@ -79,7 +79,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       chats: [...oldChats, ...state.chats],
     })),
 
-  updateChat: (updatedChat: Partial<ChatItem> & { id: string }) =>
+  updateChat: (updatedChat: Partial<ChatMessage> & { id: string }) =>
     set((state) => ({
       chats: state.chats.map((chat) =>
         chat.id === updatedChat.id ? { ...chat, ...updatedChat } : chat
