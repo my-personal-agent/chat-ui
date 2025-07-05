@@ -38,7 +38,7 @@ export interface StreamChatMessage {
 }
 
 export interface SendConfrimation {
-  approve: "accept" | "deny";
+  approve: "accept" | "edit" | "deny";
 }
 
 export interface WSOutgoing {
