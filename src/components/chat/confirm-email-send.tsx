@@ -4,7 +4,15 @@ import {
   StreamChatMessage,
   StreamChatMessageConfirmation,
 } from "@/types/chat";
-import { BadgeCheckIcon, Edit3, Mail, Plus, Send, X } from "lucide-react";
+import {
+  BadgeCheckIcon,
+  BadgeInfoIcon,
+  Edit3,
+  Mail,
+  Plus,
+  Send,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { Markdown } from "../markdown";
 import { Avatar, AvatarFallback } from "../ui/avatar";
@@ -115,14 +123,18 @@ export function ConfirmEmailSend({
       editedBody !== originalBody;
 
     const updatedConfirmation = {
-      approve: isEdited ? ("edit" as const) : ("accept" as const),
-      args: {
-        to: editedTo,
-        cc: editedCc.length > 0 ? editedCc : undefined,
-        bcc: editedBcc.length > 0 ? editedBcc : undefined,
-        subject: editedSubject,
-        body: editedBody,
-      },
+      approve: isEdited ? ("update" as const) : ("accept" as const),
+      ...(isEdited && {
+        data: {
+          args: {
+            to: editedTo,
+            cc: editedCc.length > 0 ? editedCc : undefined,
+            bcc: editedBcc.length > 0 ? editedBcc : undefined,
+            subject: editedSubject,
+            body: editedBody,
+          },
+        },
+      }),
     };
 
     // Set to preview mode after sending
@@ -137,7 +149,6 @@ export function ConfirmEmailSend({
     newEmail: string,
     setNewEmail: (email: string) => void
   ) => {
-    console.log(`Rendering ${type} emails:`, emails); // Debug log
     return (
       <div className="space-y-2">
         {emails && emails.length > 0
@@ -181,7 +192,7 @@ export function ConfirmEmailSend({
               placeholder="Add email address"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              onKeyPress={(e) => {
+              onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   addEmail(type, newEmail);
                 }
@@ -217,7 +228,7 @@ export function ConfirmEmailSend({
               <div>
                 <CardTitle>
                   Confirm Email{" "}
-                  {confirmation.approve === true && (
+                  {confirmation.approve === "accept" && (
                     <Badge
                       variant="secondary"
                       className="bg-blue-500 text-white dark:bg-blue-600"
@@ -226,7 +237,16 @@ export function ConfirmEmailSend({
                       Accepted
                     </Badge>
                   )}
-                  {confirmation.approve === false && (
+                  {confirmation.approve === "feedback" && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-500 text-white dark:bg-blue-600"
+                    >
+                      <BadgeInfoIcon />
+                      Feedback
+                    </Badge>
+                  )}
+                  {confirmation.approve === "cancel" && (
                     <Badge className="" variant="destructive">
                       Canceled
                     </Badge>
@@ -236,18 +256,16 @@ export function ConfirmEmailSend({
                   Review your message before sending
                 </CardDescription>
               </div>
-              {confirmation.approve !== true &&
-                confirmation.approve !== false &&
-                !isStreaming && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    {isEditing ? "Preview" : "Edit"}
-                  </Button>
-                )}
+              {confirmation.approve === "asking" && !isStreaming && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  {isEditing ? "Preview" : "Edit"}
+                </Button>
+              )}
             </div>
           </CardHeader>
 
@@ -392,38 +410,36 @@ export function ConfirmEmailSend({
             </Card>
           </CardContent>
 
-          {confirmation.approve !== true &&
-            confirmation.approve !== false &&
-            !isStreaming && (
-              <CardFooter className="flex-col space-y-3 p-0">
-                <div className="flex w-full space-x-3">
-                  <Button
-                    className="flex-1"
-                    size="lg"
-                    onClick={handleSend}
-                    disabled={to.length === 0 || !subject.trim()}
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Email
-                  </Button>
+          {confirmation.approve === "asking" && !isStreaming && (
+            <CardFooter className="flex-col space-y-3 p-0">
+              <div className="flex w-full space-x-3">
+                <Button
+                  className="flex-1"
+                  size="lg"
+                  onClick={handleSend}
+                  disabled={to.length === 0 || !subject.trim()}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Email
+                </Button>
 
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() =>
-                      sendConfirmation(message.id, { approve: "deny" })
-                    }
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() =>
+                    sendConfirmation(message.id, { approve: "cancel" })
+                  }
+                >
+                  Cancel
+                </Button>
+              </div>
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Your email will be sent immediately. This action cannot be
-                  undone.
-                </p>
-              </CardFooter>
-            )}
+              <p className="text-xs text-muted-foreground text-center">
+                Your email will be sent immediately. This action cannot be
+                undone.
+              </p>
+            </CardFooter>
+          )}
         </Card>
       </div>
     </div>

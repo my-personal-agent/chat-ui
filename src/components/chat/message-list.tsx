@@ -9,7 +9,7 @@ import {
   StreamChatMessageConfirmation,
 } from "@/types/chat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConfirmEmailSend } from "./confirm-emai-send";
+import { ConfirmEmailSend } from "./confirm-email-send";
 
 const UserSkeletonMessage = () => (
   <div className="flex justify-end">
@@ -241,10 +241,7 @@ export function MessageList({
             const confirmation =
               message.content as StreamChatMessageConfirmation;
 
-            if (
-              confirmation.name === "send_gmail" ||
-              confirmation.name === "transfer_to_google_agent"
-            ) {
+            if (confirmation.name === "send_gmail") {
               return (
                 <ConfirmEmailSend
                   sendConfirmation={sendConfirmation}

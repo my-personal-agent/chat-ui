@@ -5,10 +5,17 @@ export type ChatRole =
   | "confirmation"
   | "error";
 
+export type ChatMessageApproveType =
+  | "asking"
+  | "accept"
+  | "update"
+  | "feedback"
+  | "cancel";
+
 export interface StreamChatMessageConfirmation {
   name: str;
   args: { [key: string]: string };
-  approve?: boolean;
+  approve: ChatMessageApproveType;
 }
 
 export interface StreamChatMessage {
@@ -38,7 +45,8 @@ export interface StreamChatMessage {
 }
 
 export interface SendConfrimation {
-  approve: "accept" | "edit" | "deny";
+  approve: "accept" | "update" | "cancel" | "feedback";
+  data?: unknown;
 }
 
 export interface WSOutgoing {
