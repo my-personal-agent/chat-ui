@@ -14,7 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUploadManager, UploadProgress } from "@/lib/file-uploads";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Archive,
@@ -26,11 +28,13 @@ import {
   FileTypeIcon,
   ImageIcon,
   LayoutGridIcon,
+  Loader2,
   Mic,
   MusicIcon,
   Plus,
   Send,
   Square,
+  Trash2,
   Upload,
   VideoIcon,
   XIcon,
@@ -51,7 +55,10 @@ interface FileUpload {
   id: string;
   uploading: boolean;
   uploaded: boolean;
+  progress: number;
   error?: string;
+  deleting?: boolean;
+  uploadedFileId?: string; // ID returned from backend after upload
 }
 
 interface MessageFormProps {
@@ -59,15 +66,15 @@ interface MessageFormProps {
   isStreaming: boolean;
   showingConfirmation: boolean;
   onStop: () => void;
-  onFileUpload?: (file: File) => Promise<void>;
 }
+
+// No need for extended class, using enhanced FileUploadManager directly
 
 export function MessageForm({
   onSubmit,
   isStreaming,
   showingConfirmation,
   onStop,
-  onFileUpload,
 }: MessageFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,11 +105,8 @@ export function MessageForm({
       }
     };
 
-    // Listen for drag end events on the document
     document.addEventListener("dragend", handleDragEnd);
     document.addEventListener("keydown", handleEscKey);
-
-    // Also listen for mouse events that might indicate drag cancellation
     document.addEventListener("mouseup", handleDragEnd);
 
     return () => {
@@ -134,10 +138,7 @@ export function MessageForm({
     adjustTextareaHeight();
   }, [watchedMessage]);
 
-  // Auto-upload files to backend
   const uploadFile = async (fileUpload: FileUpload) => {
-    if (!onFileUpload) return;
-
     try {
       setSelectedFiles((prev) =>
         prev.map((f) =>
@@ -147,40 +148,83 @@ export function MessageForm({
         )
       );
 
-      await onFileUpload(fileUpload.file);
+      const fileId = await FileUploadManager.uploadFile(
+        fileUpload.file,
+        (progress: UploadProgress) => {
+          setSelectedFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileUpload.id
+                ? {
+                    ...f,
+                    progress: progress.progress,
+                    uploading: progress.status === "uploading",
+                    uploaded: progress.status === "completed",
+                    error: progress.error,
+                    // Store the backend file ID when we get it
+                    uploadedFileId: progress.fileId || f.uploadedFileId,
+                  }
+                : f
+            )
+          );
+        }
+      );
 
+      // Ensure the final file ID is stored
       setSelectedFiles((prev) =>
         prev.map((f) =>
-          f.id === fileUpload.id
-            ? { ...f, uploading: false, uploaded: true }
-            : f
+          f.id === fileUpload.id ? { ...f, uploadedFileId: fileId } : f
         )
       );
     } catch {
-      // Show toast notification
       toast.error(`Failed to upload ${fileUpload.file.name}`);
-
-      // Remove the file from selectedFiles
       setSelectedFiles((prev) => prev.filter((f) => f.id !== fileUpload.id));
+    }
+  };
+
+  const deleteFile = async (fileUpload: FileUpload) => {
+    try {
+      setSelectedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileUpload.id
+            ? { ...f, deleting: true, error: undefined }
+            : f
+        )
+      );
+
+      // Only delete from backend if file was successfully uploaded
+      if (fileUpload.uploaded && fileUpload.uploadedFileId) {
+        await FileUploadManager.deleteFile(fileUpload.uploadedFileId);
+      }
+
+      // Remove from local state
+      setSelectedFiles((prev) => prev.filter((f) => f.id !== fileUpload.id));
+    } catch {
+      toast.error(`Failed to delete ${fileUpload.file.name}`);
+      setSelectedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileUpload.id
+            ? { ...f, deleting: false, error: "Failed to delete" }
+            : f
+        )
+      );
     }
   };
 
   const handleFileSelect = (files: File[]) => {
     const newFileUploads: FileUpload[] = files.map((file) => ({
       file,
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       uploading: false,
       uploaded: false,
+      progress: 0,
     }));
 
     setSelectedFiles((prev) => [...prev, ...newFileUploads]);
 
-    // Auto-upload each file if handler is provided
-    if (onFileUpload) {
-      newFileUploads.forEach((fileUpload) => {
-        uploadFile(fileUpload);
-      });
-    }
+    // Auto-upload each file
+    newFileUploads.forEach((fileUpload) => {
+      uploadFile(fileUpload);
+    });
 
     // Reset the input so the same file can be selected again
     if (fileInputRef.current) {
@@ -194,14 +238,30 @@ export function MessageForm({
   };
 
   const removeFile = (id: string) => {
-    setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
+    const fileUpload = selectedFiles.find((f) => f.id === id);
+    if (fileUpload) {
+      if (fileUpload.uploaded) {
+        // File was uploaded, need to delete from backend
+        deleteFile(fileUpload);
+      } else {
+        // File not uploaded yet, just remove from local state
+        setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
+      }
+    }
   };
 
   const handleSubmit = (data: MessageFormData) => {
     if (isStreaming || showingConfirmation) return;
 
-    const files = selectedFiles.map((f) => f.file);
-    onSubmit(data.message, files.length > 0 ? files : undefined);
+    // Only include uploaded files
+    const uploadedFiles = selectedFiles
+      .filter((f) => f.uploaded)
+      .map((f) => f.file);
+
+    onSubmit(
+      data.message,
+      uploadedFiles.length > 0 ? uploadedFiles : undefined
+    );
     form.reset();
     setSelectedFiles([]);
     if (textareaRef.current) {
@@ -285,11 +345,7 @@ export function MessageForm({
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Increment counter for each dragenter event
     setDragCounter((prev) => prev + 1);
-
-    // Check if dragged items contain files
     if (e.dataTransfer.types.includes("Files")) {
       setIsDragging(true);
     }
@@ -298,11 +354,8 @@ export function MessageForm({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Decrement counter for each dragleave event
     setDragCounter((prev) => {
       const newCounter = prev - 1;
-      // Only hide drag state when counter reaches 0
       if (newCounter <= 0) {
         setIsDragging(false);
         return 0;
@@ -314,7 +367,6 @@ export function MessageForm({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Keep drag effect as 'copy' for better UX
     e.dataTransfer.dropEffect = "copy";
   };
 
@@ -329,6 +381,9 @@ export function MessageForm({
       handleFileSelect(files);
     }
   };
+
+  const hasUploadingFiles = selectedFiles.some((f) => f.uploading);
+  const hasDeletingFiles = selectedFiles.some((f) => f.deleting);
 
   return (
     <Card
@@ -358,37 +413,49 @@ export function MessageForm({
           </div>
         )}
 
-        {/* Selected Files Display - No padding */}
+        {/* Selected Files Display */}
         {selectedFiles.length > 0 && (
           <div className="overflow-x-auto no-scrollbar p-2">
             <div className="flex gap-2 min-w-max">
               {selectedFiles.map((fileUpload) => (
                 <div
                   key={fileUpload.id}
-                  className="relative flex items-center rounded-lg p-3 min-w-[200px] border flex-shrink-0"
+                  className="relative flex flex-col rounded-lg p-3 min-w-[200px] border flex-shrink-0"
                 >
-                  <div className="flex items-center space-x-3 flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
                     <div className="flex-shrink-0">
-                      {getFileIcon(fileUpload.file)}
+                      {fileUpload.uploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : fileUpload.deleting ? (
+                        <Trash2 className="w-4 h-4 text-red-500 animate-pulse" />
+                      ) : (
+                        getFileIcon(fileUpload.file)
+                      )}
                     </div>
-                    <div className="min-w-0 flex-1 ">
-                      <p className="text-sm font-medium truncate max-w-[300px] pr-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate max-w-[300px]">
                         {fileUpload.file.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatFileSize(fileUpload.file.size)}
                       </p>
                     </div>
+                    {/* Only show delete button when file is fully uploaded */}
+                    {fileUpload.uploaded && !fileUpload.deleting && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0"
+                        onClick={() => removeFile(fileUpload.id)}
+                      >
+                        <XIcon className="w-3 h-3" />
+                      </Button>
+                    )}
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 h-6 w-6 p-0"
-                    onClick={() => removeFile(fileUpload.id)}
-                  >
-                    <XIcon className="w-3 h-3" />
-                  </Button>
+                  {fileUpload.uploading && (
+                    <Progress value={fileUpload.progress} className="h-1" />
+                  )}
                 </div>
               ))}
             </div>
@@ -485,7 +552,7 @@ export function MessageForm({
                   >
                     <Square className="w-4 h-4" />
                   </Button>
-                ) : showingConfirmation ? (
+                ) : (
                   <Button
                     type="button"
                     disabled={true}
@@ -494,12 +561,14 @@ export function MessageForm({
                   >
                     <Send className="w-4 h-4" />
                   </Button>
-                ) : null
+                )
               ) : (
                 <Button
                   type="submit"
                   disabled={
-                    !watchedMessage?.trim() && selectedFiles.length === 0
+                    (!watchedMessage?.trim() && selectedFiles.length === 0) ||
+                    hasUploadingFiles ||
+                    hasDeletingFiles
                   }
                   size="icon"
                   className="h-8 w-8 rounded-full"
@@ -509,7 +578,6 @@ export function MessageForm({
               )}
             </div>
           </div>
-          {/* Hidden file input - accepts all file types */}
           <input
             ref={fileInputRef}
             type="file"
