@@ -73,7 +73,7 @@ export class FileUploadManager {
 
   static async deleteFile(fileId: string): Promise<DeleteResponse> {
     try {
-      const response = await fetch(`/api/upload/${fileId}`, {
+      const response = await fetch(`/api/chats/upload/${fileId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -108,34 +108,27 @@ export class FileUploadManager {
     try {
       const formData = new FormData();
       formData.append("chunk", chunk);
-
-      const headers: Record<string, string> = {
-        "x-filename": fileName,
-        "x-chunk-index": chunkIndex.toString(),
-        "x-total-chunks": totalChunks.toString(),
-      };
-
-      // Only include file_id header if we have one (not for first chunk)
+      formData.append("filename", fileName);
+      formData.append("chunk_index", chunkIndex.toString());
+      formData.append("total_chunks", totalChunks.toString());
       if (fileId) {
-        headers["x-file-id"] = fileId;
+        formData.append("file_id", fileId);
       }
-
-      const response = await fetch("/api/upload/chunks", {
+      // Send the FormData directly in the body — no headers!
+      const response = await fetch(`/api/chats/upload/chunks`, {
         method: "POST",
-        headers,
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+        const text = await response.text();
+        throw new Error(`Upload failed (${response.status}): ${text}`);
       }
 
       return await response.json();
     } catch (error) {
       if (retryCount < this.MAX_RETRIES) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (retryCount + 1))
-        );
+        await new Promise((res) => setTimeout(res, 1000 * (retryCount + 1)));
         return this.uploadChunk(
           chunk,
           fileId,

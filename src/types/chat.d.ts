@@ -18,6 +18,11 @@ export interface StreamChatMessageConfirmation {
   approve: ChatMessageApproveType;
 }
 
+export interface StreamChatMessageUploadedFile {
+  id: str;
+  filename: str;
+}
+
 export interface StreamChatMessage {
   type:
     | "create_chat"
@@ -39,6 +44,7 @@ export interface StreamChatMessage {
   id: string;
   role: ChatRole;
   content: string | StreamChatMessageConfirmation;
+  upload_files: StreamChatMessageUploadedFile[];
   timestamp: number;
   chat_id: string;
   isProcessing?: boolean;
@@ -54,9 +60,10 @@ export interface WSOutgoing {
   message?: string | SendConfrimation;
   chat_id?: string;
   msg_id?: string;
+  upload_files?: StreamChatMessageUploadedFile[];
 }
 
-export interface ChatMessage {
+export interface Chat {
   id: string;
   title: string;
   url: string;

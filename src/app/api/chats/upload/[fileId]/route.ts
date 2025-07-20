@@ -7,7 +7,7 @@ export async function DELETE(
   const { fileId } = await params;
 
   const backendResponse = await fetch(
-    `${process.env.AGENT_RAG_SERVICE_URL}/upload/${fileId}`,
+    `${process.env.API_BASE_URL}/chats/upload/${fileId}`,
     {
       method: "DELETE",
       headers: {
@@ -23,7 +23,7 @@ export async function DELETE(
     );
   }
 
-  // ✅ If backend returns 204 No Content, skip JSON parsing
+  // If backend returns 204 No Content, skip JSON parsing
   if (backendResponse.status === 204) {
     return new NextResponse(null, { status: 204 });
   }

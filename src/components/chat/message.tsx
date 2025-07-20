@@ -4,6 +4,7 @@ import { CollapsibleAside } from "@/components/collapsible-aside";
 import { Markdown } from "@/components/markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getFileIcon } from "@/lib/file-utils";
 import { StreamChatMessage } from "@/types/chat";
 import { AlertCircle, Bot, User } from "lucide-react";
 
@@ -14,7 +15,6 @@ interface MessageProps {
 export function Message({ message }: MessageProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
-  // const isAssistant = message.sender === "assistant";
   const isError = message.role === "error";
 
   const baseBubbleClass = isUser
@@ -42,24 +42,52 @@ export function Message({ message }: MessageProps) {
           </AvatarFallback>
         </Avatar>
 
-        <div className="flex-1 min-w-0">
-          <div className={`${baseBubbleClass} text-sm text-justify`}>
-            <div className="prose prose-neutral dark:prose-invert max-w-none space-y-2">
-              {isSystem ? (
-                <CollapsibleAside streaming={message.isProcessing ?? false}>
-                  {message.content as string}
-                </CollapsibleAside>
-              ) : (
-                <Markdown content={message.content as string} />
+        <div className="flex-1 min-w-0 space-y-3">
+          {/* Display uploaded files if they exist - vertical alignment */}
+          {message.upload_files && message.upload_files.length > 0 && (
+            <div
+              className={`flex flex-col gap-2 ${
+                isUser ? "items-end" : "items-start"
+              }`}
+            >
+              {message.upload_files.map((uploadFile, index) => (
+                <div
+                  key={uploadFile.id || index}
+                  className="flex items-center space-x-2 rounded-lg p-3 border w-fit"
+                >
+                  <div className="flex-shrink-0">
+                    {getFileIcon(uploadFile.filename)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium whitespace-nowrap">
+                      {uploadFile.filename}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Message content - constrained width with proper alignment */}
+          <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+            <div className={`${baseBubbleClass} text-sm text-justify`}>
+              <div className="prose prose-neutral dark:prose-invert max-w-none space-y-2">
+                {isSystem ? (
+                  <CollapsibleAside streaming={message.isProcessing ?? false}>
+                    {message.content as string}
+                  </CollapsibleAside>
+                ) : (
+                  <Markdown content={message.content as string} />
+                )}
+              </div>
+
+              {message.content === "" && (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                </div>
               )}
             </div>
-
-            {message.content === "" && (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
-              </div>
-            )}
           </div>
         </div>
       </div>

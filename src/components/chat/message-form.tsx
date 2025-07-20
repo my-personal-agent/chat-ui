@@ -17,6 +17,7 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUploadManager, UploadProgress } from "@/lib/file-uploads";
+import { StreamChatMessageUploadedFile } from "@/types/chat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Archive,
@@ -62,7 +63,10 @@ interface FileUpload {
 }
 
 interface MessageFormProps {
-  onSubmit: (message: string, files?: File[]) => void;
+  onSubmit: (
+    message: string,
+    uploadFiles?: StreamChatMessageUploadedFile[]
+  ) => void;
   isStreaming: boolean;
   showingConfirmation: boolean;
   onStop: () => void;
@@ -175,7 +179,8 @@ export function MessageForm({
           f.id === fileUpload.id ? { ...f, uploadedFileId: fileId } : f
         )
       );
-    } catch {
+    } catch (exception) {
+      console.error(exception);
       toast.error(`Failed to upload ${fileUpload.file.name}`);
       setSelectedFiles((prev) => prev.filter((f) => f.id !== fileUpload.id));
     }
@@ -256,7 +261,10 @@ export function MessageForm({
     // Only include uploaded files
     const uploadedFiles = selectedFiles
       .filter((f) => f.uploaded)
-      .map((f) => f.file);
+      .map((f) => ({
+        id: f.uploadedFileId ?? f.id,
+        filename: f.file.name,
+      }));
 
     onSubmit(
       data.message,

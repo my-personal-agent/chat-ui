@@ -2,7 +2,12 @@
 
 import { useChatMessagesStore } from "@/stores/chatMessagesStore";
 import { useChatStore } from "@/stores/chatsStore";
-import { SendConfrimation, StreamChatMessage, WSOutgoing } from "@/types/chat";
+import {
+  SendConfrimation,
+  StreamChatMessage,
+  StreamChatMessageUploadedFile,
+  WSOutgoing,
+} from "@/types/chat";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { create } from "zustand";
@@ -14,7 +19,10 @@ interface WebSocketState {
   showingConfirmation: boolean;
   router: ReturnType<typeof useRouter> | null;
   connect: () => void;
-  sendMessage: (text: string) => void;
+  sendMessage: (
+    message: string,
+    uploadFiles?: StreamChatMessageUploadedFile[]
+  ) => void;
   sendConfirmation: (msgId: string, confirmation: SendConfrimation) => void;
   stopStreaming: () => void;
   setRouter: (router: ReturnType<typeof useRouter>) => void;
@@ -137,7 +145,6 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
           return;
 
         case "end_confirmation":
-          console.log(data);
           chatMessagesStore.updateMessage(data.chat_id, {
             id: data.id,
             content: data.content,
@@ -192,7 +199,10 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
     return () => clearInterval(pingInterval);
   };
 
-  const sendMessage = (text: string) => {
+  const sendMessage = (
+    message: string,
+    uploadFiles?: StreamChatMessageUploadedFile[]
+  ) => {
     const { ws } = get();
     const chatId = useChatMessagesStore.getState().chatId;
 
@@ -204,7 +214,8 @@ export const useChatMessagesWebSocket = create<WebSocketState>((set, get) => {
       ws.send(
         JSON.stringify({
           type: "user_message",
-          message: text,
+          message: message,
+          upload_files: uploadFiles,
           ...(chatId ? { chat_id: chatId } : {}),
         } as WSOutgoing)
       );
