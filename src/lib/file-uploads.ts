@@ -36,6 +36,14 @@ export class FileUploadManager {
         const end = Math.min(start + this.CHUNK_SIZE, file.size);
         const chunk = file.slice(start, end);
 
+        const subProgress = ((chunkIndex + 0.5) / totalChunks) * 100;
+        onProgress?.({
+          fileId: fileId!,
+          fileName: file.name,
+          progress: subProgress,
+          status: subProgress === 100 ? "completed" : "uploading",
+        });
+
         const response = await this.uploadChunk(
           chunk,
           fileId, // Will be null for first chunk

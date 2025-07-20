@@ -121,13 +121,6 @@
   }
 }
 
-ul ul,
-ol ol,
-ul ol,
-ol ul {
-  padding-left: 1rem; /* Tailwind's pl-6 equivalent */
-}
-
 button {
   cursor: pointer;
 }

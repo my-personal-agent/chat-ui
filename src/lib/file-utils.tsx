@@ -18,7 +18,7 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-export function getFileIcon(filename: string) {
+export function getFileIcon(filename: string, className = "w-4 h-4") {
   const extension = filename.split(".").pop()?.toLowerCase();
 
   // Image files
@@ -36,7 +36,7 @@ export function getFileIcon(filename: string) {
       "tif",
     ].includes(extension || "")
   ) {
-    return <ImageIcon className="w-4 h-4 text-blue-500" />;
+    return <ImageIcon className={`${className} text-blue-500`} />;
   }
 
   // Video files
@@ -54,7 +54,7 @@ export function getFileIcon(filename: string) {
       "ogv",
     ].includes(extension || "")
   ) {
-    return <VideoIcon className="w-4 h-4 text-red-500" />;
+    return <VideoIcon className={`${className} text-red-500`} />;
   }
 
   // Audio files
@@ -63,12 +63,12 @@ export function getFileIcon(filename: string) {
       extension || ""
     )
   ) {
-    return <MusicIcon className="w-4 h-4 text-green-500" />;
+    return <MusicIcon className={`${className} text-green-500`} />;
   }
 
   // PDF files
   if (extension === "pdf") {
-    return <FileTextIcon className="w-4 h-4 text-red-600" />;
+    return <FileTextIcon className={`${className} text-red-600`} />;
   }
 
   // Spreadsheet files
@@ -77,7 +77,7 @@ export function getFileIcon(filename: string) {
       extension || ""
     )
   ) {
-    return <FileSpreadsheetIcon className="w-4 h-4 text-green-600" />;
+    return <FileSpreadsheetIcon className={`${className} text-green-600`} />;
   }
 
   // Document files
@@ -86,7 +86,7 @@ export function getFileIcon(filename: string) {
       extension || ""
     )
   ) {
-    return <FileTypeIcon className="w-4 h-4 text-blue-600" />;
+    return <FileTypeIcon className={`${className} text-blue-600`} />;
   }
 
   // Archive files
@@ -104,7 +104,7 @@ export function getFileIcon(filename: string) {
       "iso",
     ].includes(extension || "")
   ) {
-    return <Archive className="w-4 h-4 text-orange-500" />;
+    return <Archive className={`${className} text-orange-500`} />;
   }
 
   // Code files
@@ -167,9 +167,9 @@ export function getFileIcon(filename: string) {
       "hbs",
     ].includes(extension || "")
   ) {
-    return <CodeIcon className="w-4 h-4 text-purple-500" />;
+    return <CodeIcon className={`${className} text-purple-500`} />;
   }
 
   // Default file icon
-  return <FileIcon className="w-4 h-4 text-gray-500" />;
+  return <FileIcon className={`${className} text-gray-500`} />;
 }

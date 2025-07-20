@@ -2,65 +2,24 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { FileUploadManager, UploadProgress } from "@/lib/file-uploads";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { StreamChatMessageUploadedFile } from "@/types/chat";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Archive,
-  CodeIcon,
-  FileIcon,
-  FilePlus2Icon,
-  FileSpreadsheetIcon,
-  FileTextIcon,
-  FileTypeIcon,
-  ImageIcon,
-  LayoutGridIcon,
-  Loader2,
-  Mic,
-  MusicIcon,
-  Plus,
-  Send,
-  Square,
-  Trash2,
-  Upload,
-  VideoIcon,
-  XIcon,
-} from "lucide-react";
+import { Loader2, Mic, Send, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import * as z from "zod";
+import { DragOverlay } from "./file-upload/drag-overlay";
+import { FileUploadActions } from "./file-upload/file-upload-actions";
+import { FileUploadList } from "./file-upload/file-upload-list";
 
 const messageSchema = z.object({
   message: z.string().min(1, "Message cannot be empty").trim(),
 });
 
 type MessageFormData = z.infer<typeof messageSchema>;
-
-interface FileUpload {
-  file: File;
-  id: string;
-  uploading: boolean;
-  uploaded: boolean;
-  progress: number;
-  error?: string;
-  deleting?: boolean;
-  uploadedFileId?: string; // ID returned from backend after upload
-}
 
 interface MessageFormProps {
   onSubmit: (
@@ -72,8 +31,6 @@ interface MessageFormProps {
   onStop: () => void;
 }
 
-// No need for extended class, using enhanced FileUploadManager directly
-
 export function MessageForm({
   onSubmit,
   isStreaming,
@@ -84,9 +41,20 @@ export function MessageForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isComposing, setIsComposing] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<FileUpload[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [, setDragCounter] = useState(0);
+  const [previewMode, setPreviewMode] = useState(true);
+
+  // Use the custom hook for file upload logic
+  const {
+    selectedFiles,
+    addFiles,
+    removeFile,
+    clearFiles,
+    getUploadedFiles,
+    hasUploadingFiles,
+    hasDeletingFiles,
+  } = useFileUpload();
 
   const form = useForm<MessageFormData>({
     resolver: zodResolver(messageSchema),
@@ -142,94 +110,8 @@ export function MessageForm({
     adjustTextareaHeight();
   }, [watchedMessage]);
 
-  const uploadFile = async (fileUpload: FileUpload) => {
-    try {
-      setSelectedFiles((prev) =>
-        prev.map((f) =>
-          f.id === fileUpload.id
-            ? { ...f, uploading: true, error: undefined }
-            : f
-        )
-      );
-
-      const fileId = await FileUploadManager.uploadFile(
-        fileUpload.file,
-        (progress: UploadProgress) => {
-          setSelectedFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileUpload.id
-                ? {
-                    ...f,
-                    progress: progress.progress,
-                    uploading: progress.status === "uploading",
-                    uploaded: progress.status === "completed",
-                    error: progress.error,
-                    // Store the backend file ID when we get it
-                    uploadedFileId: progress.fileId || f.uploadedFileId,
-                  }
-                : f
-            )
-          );
-        }
-      );
-
-      // Ensure the final file ID is stored
-      setSelectedFiles((prev) =>
-        prev.map((f) =>
-          f.id === fileUpload.id ? { ...f, uploadedFileId: fileId } : f
-        )
-      );
-    } catch (exception) {
-      console.error(exception);
-      toast.error(`Failed to upload ${fileUpload.file.name}`);
-      setSelectedFiles((prev) => prev.filter((f) => f.id !== fileUpload.id));
-    }
-  };
-
-  const deleteFile = async (fileUpload: FileUpload) => {
-    try {
-      setSelectedFiles((prev) =>
-        prev.map((f) =>
-          f.id === fileUpload.id
-            ? { ...f, deleting: true, error: undefined }
-            : f
-        )
-      );
-
-      // Only delete from backend if file was successfully uploaded
-      if (fileUpload.uploaded && fileUpload.uploadedFileId) {
-        await FileUploadManager.deleteFile(fileUpload.uploadedFileId);
-      }
-
-      // Remove from local state
-      setSelectedFiles((prev) => prev.filter((f) => f.id !== fileUpload.id));
-    } catch {
-      toast.error(`Failed to delete ${fileUpload.file.name}`);
-      setSelectedFiles((prev) =>
-        prev.map((f) =>
-          f.id === fileUpload.id
-            ? { ...f, deleting: false, error: "Failed to delete" }
-            : f
-        )
-      );
-    }
-  };
-
   const handleFileSelect = (files: File[]) => {
-    const newFileUploads: FileUpload[] = files.map((file) => ({
-      file,
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-      uploading: false,
-      uploaded: false,
-      progress: 0,
-    }));
-
-    setSelectedFiles((prev) => [...prev, ...newFileUploads]);
-
-    // Auto-upload each file
-    newFileUploads.forEach((fileUpload) => {
-      uploadFile(fileUpload);
-    });
+    addFiles(files);
 
     // Reset the input so the same file can be selected again
     if (fileInputRef.current) {
@@ -242,36 +124,19 @@ export function MessageForm({
     handleFileSelect(files);
   };
 
-  const removeFile = (id: string) => {
-    const fileUpload = selectedFiles.find((f) => f.id === id);
-    if (fileUpload) {
-      if (fileUpload.uploaded) {
-        // File was uploaded, need to delete from backend
-        deleteFile(fileUpload);
-      } else {
-        // File not uploaded yet, just remove from local state
-        setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
-      }
-    }
-  };
-
   const handleSubmit = (data: MessageFormData) => {
     if (isStreaming || showingConfirmation) return;
 
-    // Only include uploaded files
-    const uploadedFiles = selectedFiles
-      .filter((f) => f.uploaded)
-      .map((f) => ({
-        id: f.uploadedFileId ?? f.id,
-        filename: f.file.name,
-      }));
+    const uploadedFiles = getUploadedFiles();
 
     onSubmit(
       data.message,
       uploadedFiles.length > 0 ? uploadedFiles : undefined
     );
+
     form.reset();
-    setSelectedFiles([]);
+    clearFiles();
+
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -283,71 +148,6 @@ export function MessageForm({
       e.preventDefault();
       form.handleSubmit(handleSubmit)();
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const getFileIcon = (file: File) => {
-    const type = file.type.toLowerCase();
-    const extension = file.name.split(".").pop()?.toLowerCase();
-
-    if (type.startsWith("image/")) {
-      return <ImageIcon className="w-4 h-4 text-blue-500" />;
-    }
-    if (type.startsWith("video/")) {
-      return <VideoIcon className="w-4 h-4 text-red-500" />;
-    }
-    if (type.startsWith("audio/")) {
-      return <MusicIcon className="w-4 h-4 text-green-500" />;
-    }
-    if (type.includes("pdf")) {
-      return <FileTextIcon className="w-4 h-4 text-red-600" />;
-    }
-    if (
-      type.includes("sheet") ||
-      type.includes("excel") ||
-      extension === "xlsx" ||
-      extension === "xls" ||
-      extension === "csv"
-    ) {
-      return <FileSpreadsheetIcon className="w-4 h-4 text-green-600" />;
-    }
-    if (
-      type.includes("document") ||
-      type.includes("word") ||
-      extension === "doc" ||
-      extension === "docx"
-    ) {
-      return <FileTypeIcon className="w-4 h-4 text-blue-600" />;
-    }
-    if (type.includes("zip") || type.includes("rar") || type.includes("7z")) {
-      return <Archive className="w-4 h-4 text-orange-500" />;
-    }
-    if (
-      extension === "js" ||
-      extension === "ts" ||
-      extension === "jsx" ||
-      extension === "tsx" ||
-      extension === "py" ||
-      extension === "java" ||
-      extension === "cpp" ||
-      extension === "c" ||
-      extension === "html" ||
-      extension === "css" ||
-      extension === "json" ||
-      extension === "jsonl" ||
-      extension === "xml"
-    ) {
-      return <CodeIcon className="w-4 h-4 text-purple-500" />;
-    }
-
-    return <FileIcon className="w-4 h-4 text-gray-500" />;
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -390,9 +190,6 @@ export function MessageForm({
     }
   };
 
-  const hasUploadingFiles = selectedFiles.some((f) => f.uploading);
-  const hasDeletingFiles = selectedFiles.some((f) => f.deleting);
-
   return (
     <Card
       className="bg-card border p-0 gap-0 transition-all duration-200 border-border"
@@ -402,73 +199,14 @@ export function MessageForm({
       onDrop={handleDrop}
     >
       <Form {...form}>
-        {/* Drag overlay */}
-        {isDragging && (
-          <div className="absolute inset-0 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-            <div className="text-center space-y-2">
-              <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center">
-                <Upload className="w-6 h-6" />
-              </div>
-              <p className="font-medium">Drop files here</p>
-              <p className="text-sm">
-                {selectedFiles.length > 0
-                  ? `Add to ${selectedFiles.length} selected file${
-                      selectedFiles.length > 1 ? "s" : ""
-                    }`
-                  : "Upload files to attach to your message"}
-              </p>
-            </div>
-          </div>
-        )}
+        <DragOverlay isDragging={isDragging} fileCount={selectedFiles.length} />
 
-        {/* Selected Files Display */}
-        {selectedFiles.length > 0 && (
-          <div className="overflow-x-auto no-scrollbar p-2">
-            <div className="flex gap-2 min-w-max">
-              {selectedFiles.map((fileUpload) => (
-                <div
-                  key={fileUpload.id}
-                  className="relative flex flex-col rounded-lg p-3 min-w-[200px] border flex-shrink-0"
-                >
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div className="flex-shrink-0">
-                      {fileUpload.uploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : fileUpload.deleting ? (
-                        <Trash2 className="w-4 h-4 text-red-500 animate-pulse" />
-                      ) : (
-                        getFileIcon(fileUpload.file)
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate max-w-[300px]">
-                        {fileUpload.file.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(fileUpload.file.size)}
-                      </p>
-                    </div>
-                    {/* Only show delete button when file is fully uploaded */}
-                    {fileUpload.uploaded && !fileUpload.deleting && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-1 right-1 h-6 w-6 p-0"
-                        onClick={() => removeFile(fileUpload.id)}
-                      >
-                        <XIcon className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                  {fileUpload.uploading && (
-                    <Progress value={fileUpload.progress} className="h-1" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <FileUploadList
+          files={selectedFiles}
+          previewMode={previewMode}
+          onTogglePreviewMode={() => setPreviewMode(!previewMode)}
+          onRemoveFile={removeFile}
+        />
 
         <form onSubmit={form.handleSubmit(handleSubmit)} className="p-4">
           <div className="mb-4">
@@ -500,47 +238,15 @@ export function MessageForm({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    type="button"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <LayoutGridIcon className="w-4 h-4 mr-2" />
-                      Add from apps
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem>Email</DropdownMenuItem>
-                        <DropdownMenuItem>Message</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>More...</DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    <FilePlus2Icon className="w-4 h-4 text-accent-foreground" />
-                    Add files
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <FileUploadActions
+                onFileSelect={() => fileInputRef.current?.click()}
+              />
 
               <Button variant="ghost" size="sm" className="h-8" type="button">
                 <span className="text-sm">Tools</span>
               </Button>
             </div>
+
             <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
@@ -550,6 +256,7 @@ export function MessageForm({
               >
                 <Mic className="w-4 h-4" />
               </Button>
+
               {isStreaming || showingConfirmation ? (
                 isStreaming ? (
                   <Button
@@ -581,11 +288,16 @@ export function MessageForm({
                   size="icon"
                   className="h-8 w-8 rounded-full"
                 >
-                  <Send className="w-4 h-4" />
+                  {hasUploadingFiles ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               )}
             </div>
           </div>
+
           <input
             ref={fileInputRef}
             type="file"
