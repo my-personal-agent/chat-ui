@@ -26,7 +26,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { StreamChatMessage } from "@/types/chat";
+import { Chat } from "@/types/chat";
 import { Dot, Ellipsis, Folder, Share, Trash } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import { Skeleton } from "../ui/skeleton";
 
 interface NavChatsProps {
-  chats: StreamChatMessage[];
+  chats: Chat[];
   fetching: boolean;
   onDeleteChat?: (chatId: string) => Promise<void> | void;
 }
@@ -45,9 +45,7 @@ export function NavChats({ chats, fetching, onDeleteChat }: NavChatsProps) {
   const { chatId } = useParams();
   const router = useRouter();
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
-  const [chatToDelete, setChatToDelete] = useState<StreamChatMessage | null>(
-    null
-  );
+  const [chatToDelete, setChatToDelete] = useState<Chat | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Memoize sorted chats to prevent unnecessary re-sorting
@@ -59,7 +57,7 @@ export function NavChats({ chats, fetching, onDeleteChat }: NavChatsProps) {
     });
   }, [chats]);
 
-  const handleDeleteClick = (chat: StreamChatMessage) => {
+  const handleDeleteClick = (chat: Chat) => {
     setChatToDelete(chat);
     setShowDeleteDialog(true);
   };

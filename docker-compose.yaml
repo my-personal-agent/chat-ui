@@ -1,0 +1,21 @@
+services:
+  chat-ui-app:
+    container_name: chat-ui-app
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://chat-app:8000/api/v1
+      - GOOGLE_SERVICE_URL=http://google-app:8002/api/v1
+      - NEXT_PUBLIC_WS_URL=ws://localhost:3000/api/v1
+    restart: unless-stopped
+    networks:
+      - my-personal-ai-local
+
+networks:
+  my-personal-ai-local:
+    external: true

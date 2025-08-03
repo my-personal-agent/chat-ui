@@ -1,0 +1,8 @@
+node_modules
+.next
+Docker
+README.md
+.env
+*.log
+.vscode
+.nvmrc

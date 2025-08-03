@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Settings, Unplug, User } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Connectors } from "./connectors";
 
 const data = {
@@ -31,12 +31,12 @@ const data = {
   account: { title: "Account", icon: User, content: <div></div> },
 };
 
-interface SettingsDialog {
+interface SettingsDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function SettingsDialog({ isOpen, onOpenChange }: SettingsDialog) {
+function InnerSettingsDialog({ isOpen, onOpenChange }: SettingsDialogProps) {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("general");
 
@@ -91,5 +91,13 @@ export function SettingsDialog({ isOpen, onOpenChange }: SettingsDialog) {
         </SidebarProvider>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function SettingsDialog(props: SettingsDialogProps) {
+  return (
+    <Suspense>
+      <InnerSettingsDialog {...props} />
+    </Suspense>
   );
 }

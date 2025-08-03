@@ -24,18 +24,18 @@ import {
   UserCircle,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { SettingsDialog } from "../settings/settings-dialog";
 
-export function NavUser({
-  user,
-}: {
+interface NavUserProps {
   user: {
     name: string;
     email: string;
     avatar: string;
   };
-}) {
+}
+
+function InnerNavUser({ user }: NavUserProps) {
   const searchParams = useSearchParams();
 
   const { isMobile } = useSidebar();
@@ -122,5 +122,13 @@ export function NavUser({
         onOpenChange={setIsSettingsOpen}
       />
     </>
+  );
+}
+
+export function NavUser(props: NavUserProps) {
+  return (
+    <Suspense>
+      <InnerNavUser {...props} />
+    </Suspense>
   );
 }
